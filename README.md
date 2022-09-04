@@ -27,11 +27,11 @@ USAGE
 Currently fontporter has only two command-line options:
 
 ```
-	-sixel                activate sixel font previews
+  -sixel                activate sixel font previews
   -fontsdir <path>      set fonts directory
 ```
 
-The 'fonts directory' is the directory that fonts are installed into when the user choses 'system wide install'. It defaults to '/usr/share/fonts'.
+The 'fonts directory' is the directory that fonts are installed into when the user choses 'system wide install'. It defaults to `/usr/share/fonts`.
 
 The app is menu-driven, and can be navigated using the arrow keys, or w,s,enter,backspace or i,k,enter,backspace, or any combination of these. When a font is selected from any of the menus for external fonts, it can be installed either in the user's font directory (~/.local/share/fonts) using the 'i' key, or in the systemwide fonts directory (default: '/usr/share/fonts') using the 'g' key. System-wide install requires permission to write into the target directory, and to update the font-config cache, so it's often best to just run the app using sudo.
 
@@ -67,7 +67,7 @@ SCREENSHOTS
 
 ## Viewing a font from googlefonts in xterm-sixel mode
 
-![googlefonts sixel preview](googlefonts-screenshot.png)
+![googlefonts sixel preview](googlefont-screenshot.png)
 
 
 ## localfonts sixel-mode browsing preview
