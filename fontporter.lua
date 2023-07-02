@@ -12,7 +12,8 @@ VERSION="1.0"
 settings={}
 settings.use_sixel=false
 settings.fonts_dir="/usr/share/fonts/"
-settings.preview_dir=process.getenv("HOME") .. "/.font_preview/"
+--settings.preview_dir=process.getenv("HOME") .. "/.font_preview/"
+settings.preview_dir="/tmp/.font_preview/"
 
 function URLFromCurrent(current_url, new_url)
 local URL
@@ -703,12 +704,19 @@ end
 
 
 
-function PreviewGenerate(font_name, path, format)
+function PreviewGenerate(path, format, pointsize, height, line1, line2, line3)
 local str, width
 
 width=string.format("%d", Out:width() * 6)
 
-str="convert -font '" .. path.. "' -pointsize 32 -fill '#000000' -size " .. tostring(width) .. "x200 -gravity center xc: -annotate +0-40 '" .. font_name .. "' -pointsize 24 -annotate +0+0 'The Quick Brown Fox Jumped' -annotate +0+30 'Over The Lazy Dog.' -annotate +0+60 '1 2 3 4 5 6 7 8 9 ! ? # $ % & * ( ) { }' -flatten "
+str="convert -font '" .. path.. "' -pointsize " .. tostring(pointsize) 
+str=str.." -fill '#000000' -size " .. tostring(width) .. "x" .. tostring(height)
+str=str.." -gravity center xc:"
+if strutil.strlen(line1) > 0 then str=str .. " -annotate +0-40 '" .. line1 .. "'" end
+if strutil.strlen(line2) > 0 then str=str .. " -pointsize 24 -annotate +0+0 '" .. line2 .."'" end
+if strutil.strlen(line3) > 0 then str=str .. " -annotate +0+30 '" .. line3 .. "'" end
+if strutil.strlen(line4) > 0 then str=str .. " -annotate +0+60 '" .. line4 .."'" end
+str=str.." -flatten "
 
 if format=="sixel" then str=str.."sixel:"..settings.preview_dir.."/preview.six "
 else str=str..settings.preview_dir.."/preview.png "
@@ -716,27 +724,17 @@ end
 
 str=str.." 2>/dev/null"
 
+filesys.mkdirPath(settings.preview_dir)
 os.execute(str)
 end
 
 
 
 function PreviewOneLine(font_name, path, format)
-local str, width
 
 if settings.use_sixel == true
 then
-width=string.format("%d", Out:width() * 6)
-
-str="convert -font '" .. path.. "' -pointsize 24 -fill '#000000' -size " .. tostring(width) .. "x26 -gravity center xc: -annotate +0+0 'ABCDEFGHIK abcdefghijk 0123456789' -flatten "
-
-if format=="sixel" then str=str.."sixel:"..settings.preview_dir.."/preview.six "
-else str=str..settings.preview_dir.."/preview.png"
-end
-
-str=str.."2>/dev/null"
-
-os.execute(str)
+PreviewGenerate(path, format, 24, 26,'ABCDEFGHIK abcdefghijk 0123456789')
 os.execute("cat "..settings.preview_dir.."/preview.six")
 end
 
@@ -760,11 +758,11 @@ then
 if use_sixel==true
 then
 	Out:move(x, y)
-	PreviewGenerate(font.title, path, "sixel")
+	PreviewGenerate(path, "sixel", 26, 200, font_title, "The Quick Brown Fox", "Jumped Over the Lazy Dog")
 	--filesys.copy("preview.six", "-")
 	os.execute("cat " .. settings.preview_dir .. "/preview.six")
 else
-	PreviewGenerate(font.title, path, "png")
+	PreviewGenerate(path, "png", 26, 200, font_title, "The Quick Brown Fox", "Jumped Over the Lazy Dog")
 	os.execute(settings.image_viewer .. " ".. settings.preview_dir .. "/preview.png")
 end
 
@@ -803,8 +801,11 @@ function BasicMenuBottomBar()
 local str
 
 Out:move(0,Out:height()-1)
-str="~B~yKeys: ~wup,w,i~y:move selection up  ~wdown,s,k~y:move selection down  ~wenter,right~y:select  ~wescape,backspace,left~y:back~>~0"
+str="~B~yKeys: ~wup,w,i~y:move selection up  ~wdown,s,k~y:move selection down  ~wenter,right~y:select  ~wescape,backspace,left~y:back~>"
 str=terminal.strtrunc(str, Out:width())
+
+-- add this after truncate, as we need to have it whatever
+str=str .. "~0"
 Out:puts(str)
 end
 
@@ -960,7 +961,7 @@ do
 	end
 
 	item=item .. PadStr(font.foundry, 16)
-	item=item .. "  ~w~e" .. PadStr(font.title, 30) .. "~0   ~b" .. PadStr(font.style, 20).. "  "
+	item=item .. "  ~e" .. PadStr(font.title, 30) .. "~0   ~b" .. PadStr(font.style, 20).. "  "
 	if strutil.strlen(font.license) > 0 then item=item..font.license end
 	item=item.."~0"
 	--.. font.languages.."  license:"..font.license
