@@ -28,7 +28,12 @@ Currently fontporter has only two command-line options:
 
 ```
   -sixel                activate sixel font previews
+  -viewer <prog>        set viewer to use for previews
   -fontsdir <path>      set fonts directory
+	-?                    display help
+	-h                    display help
+	-help                 display help
+	--help                display help
 ```
 
 The 'fonts directory' is the directory that fonts are installed into when the user choses 'system wide install'. It defaults to `/usr/share/fonts`.

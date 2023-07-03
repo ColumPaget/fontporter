@@ -8,7 +8,7 @@ require("xml")
 require("net")
 
 API_KEY="AIzaSyDQSLP4w0WE3UhvoSEtJmWtR1vhDgqMG7E"
-VERSION="1.0"
+VERSION="1.1"
 settings={}
 settings.use_sixel=false
 settings.fonts_dir="/usr/share/fonts/"
@@ -401,7 +401,6 @@ return(categories)
 end
 
 
-
 function GoogleFontsList()
 local P, I, item, font, files
 local fonts={}
@@ -419,9 +418,8 @@ font.name=item:value("family")
 font.title=font.name
 font.style=item:value("category")
 font.category=FontsParseStyle(font, "")
-files=item:open("/files")
-font.regular=files:value("regular")
-font.italic=files:value("italic")
+font.regular=item:value("files/regular")
+font.italic=item:value("files/italic")
 font.languages=FontLanguages(item)
 font.fileformat=filesys.extn(font.regular)
 font.fontformat=filesys.extn(font.regular)
@@ -797,17 +795,22 @@ return nil
 end
 
 
-function BasicMenuBottomBar()
+function BottomBar(text)
 local str
 
 Out:move(0,Out:height()-1)
-str="~B~yKeys: ~wup,w,i~y:move selection up  ~wdown,s,k~y:move selection down  ~wenter,right~y:select  ~wescape,backspace,left~y:back~>"
-str=terminal.strtrunc(str, Out:width())
+str=terminal.strtrunc(text, Out:width())
 
 -- add this after truncate, as we need to have it whatever
-str=str .. "~0"
+str=str .. "~>~0"
 Out:puts(str)
 end
+
+
+function BasicMenuBottomBar()
+BottomBar("~B~yKeys: ~wup,w,i~y:move selection up  ~wdown,s,k~y:move selection down  ~wenter,right~y:select  ~wescape,backspace,left~y:back")
+end
+
 
 
 
@@ -833,9 +836,8 @@ if strutil.strlen(font.description) > 0 then Out:puts("~eDescription:~0 "..font.
 if font.fileformat==".pcf" or font.fileformat==".pcf.gz" then Out:puts("\n~rThis is a PCF font, preview will likely not work~0\n"); end
 if font.fileformat==".otb" or font.fileformat==".otb.gz" then Out:puts("\n~rThis is an OTB font, preview will likely not work~0\n"); end
 
-Out:move(0,Out:height()-1)
-if source == "installed" then Out:puts("~B~yKeys: ~wv~y:launch viewer  ~wescape~y:back  ~wbackspace~y:back~>~0")
-else Out:puts("~B~yKeys: ~wv~y:launch viewer  ~wi~y:install font for user  ~wg~y:install font systemwide  ~wescape~y:back  ~wbackspace~y:back~>~0")
+if source == "installed" then BottomBar("~B~yKeys: ~wv~y:launch viewer  ~wescape~y:back  ~wbackspace~y:back")
+else BottomBar("~B~yKeys: ~wv~y:launch viewer  ~wi~y:install font for user  ~wg~y:install font systemwide  ~wescape~y:back  ~wbackspace~y:back")
 end
 
 if settings.use_sixel == true
@@ -1054,24 +1056,48 @@ return selection,list
 end
 
 
+function PrintHelp()
+
+print("usage: lua fontporter.lua [options]")
+print("options:")
+print("  -sixel             enable sixel graphics for font previews")
+print("  -viewer <prog>     use program 'prog' to view font previews")
+print("  -fontsdir <path>   set directory fonts are stored in")
+print("  -?                 display this help")
+print("  -h                 display this help")
+print("  -help              display this help")
+print("  --help             display this help")
+
+--if we are displaying help, don't run the program
+os.exit(0)
+end
+
 
 
 function ParseCommandLine()
 for i,item in ipairs(arg)
 do
-	if item=="-sixel" then settings.use_sixel=true end
-	if item=="-fontsdir" then settings.fonts_dir=arg[i+1] end
-end
+	if item=="-sixel" then settings.use_sixel=true
+	elseif item=="-viewer" then settings.image_viewer=arg[i+1]; arg[i+1]=""
+	elseif item=="-fontsdir" then settings.fonts_dir=arg[i+1]; arg[i+1]="" 
+	elseif item=="-?" then PrintHelp()
+	elseif item=="-h" then PrintHelp()
+	elseif item=="-help" then PrintHelp()
+	elseif item=="--help" then PrintHelp()
+	end
 end
 
+end
+
+
+settings.image_viewer=FindImageViewer()
+ParseCommandLine()
 
 Out=terminal.TERM()
 --Out:timeout(0)
 terminal.utf8(3)
 process.lu_set("Error:Silent", "y")
 
-settings.image_viewer=FindImageViewer()
-ParseCommandLine()
 while true
 do
 list_source,list=SelectFontSource()
