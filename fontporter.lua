@@ -29,7 +29,7 @@ end
 
 
 function FindImageViewer()
-local viewers={"display", "feh", "fim", "sxiv", "miv2", "xv", "giv", "meh"}
+local viewers={"display", "feh", "fim", "sxiv", "miv2", "xv", "giv", "meh", "iv", "xviewer", "nomacs", "xzgv", "gthumb", "ristretto", "geeqie"}
 local i,prog
 
 for i,prog in ipairs(viewers)
