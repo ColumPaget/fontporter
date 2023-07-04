@@ -18,13 +18,13 @@ Fontporter requires both libUseful (https://github.com/ColumPaget/libUseful) and
 
 Fontporter consists of a single 'fontporter.lua' file that you can place somewhere in your path. You can either run it as 'lua fontporter.lua' or, as I do, use linux's binfmt system to automatically invoke lua.
 
-There's also a 'fonts-elsewhere.conf' file that can either be put in the '/etc' or '~/.fontporter/' that supplies a list of fonts available on the internet.
+There's also a 'fonts-elsewhere.conf' file that can either be put in the '/etc' or '~/.config/fontporter/' that supplies a list of fonts available on the internet.
 
 
 USAGE
 =====
 
-Currently fontporter has only two command-line options:
+Currently fontporter has the following command-line options:
 
 ```
   -sixel                activate sixel font previews
@@ -37,6 +37,10 @@ Currently fontporter has only two command-line options:
 ```
 
 The 'fonts directory' is the directory that fonts are installed into when the user choses 'system wide install'. It defaults to `/usr/share/fonts`.
+
+'sixel mode' requires image-magick to be installed to produce the font previews, and a terminal with the sixel feature enabled to display them.
+
+the 'viewer' option allows supplying the name or path of an image viewer program to view font previews. Font previews require image-magick installed to generate them.
 
 The app is menu-driven, and can be navigated using the arrow keys, or w,s,enter,backspace or i,k,enter,backspace, or any combination of these. When a font is selected from any of the menus for external fonts, it can be installed either in the user's font directory (~/.local/share/fonts) using the 'i' key, or in the systemwide fonts directory (default: '/usr/share/fonts') using the 'g' key. System-wide install requires permission to write into the target directory, and to update the font-config cache, so it's often best to just run the app using sudo.
 
