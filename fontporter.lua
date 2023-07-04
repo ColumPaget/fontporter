@@ -402,7 +402,7 @@ end
 
 
 function GoogleFontsList()
-local P, I, item, font, files
+local P, I, item, font
 local fonts={}
 local languages={}
 local categories={}
@@ -419,11 +419,8 @@ font.title=font.name
 font.style=item:value("category")
 font.category=FontsParseStyle(font, "")
 
-files=item:open("/files")
-font.regular=files:value("regular")
-font.italic=files:value("italic")
---font.regular=item:value("files/regular")
---font.italic=item:value("files/italic")
+font.regular=item:value("files/regular")
+font.italic=item:value("files/italic")
 font.languages=FontLanguages(item)
 font.fileformat=filesys.extn(font.regular)
 font.fontformat=filesys.extn(font.regular)
