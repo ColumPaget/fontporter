@@ -7,8 +7,9 @@ require("filesys")
 require("xml")
 require("net")
 
-API_KEY="AIzaSyDQSLP4w0WE3UhvoSEtJmWtR1vhDgqMG7E"
-VERSION="1.1"
+GOOGLEFONTS_API_KEY="AIzaSyDQSLP4w0WE3UhvoSEtJmWtR1vhDgqMG7E"
+
+VERSION="2.0"
 settings={}
 settings.use_sixel=false
 settings.fonts_dir="/usr/share/fonts/"
@@ -287,6 +288,22 @@ return("regular")
 end
 
 
+function FontDeduceFormat(path)
+local fmt, str
+
+fmt=filesys.extn(path)
+if fmt == ".gz" or fmt == ".bz2" or fmt == ".xz"
+then
+str=filesys.filename(path)
+fmt=filesys.extn(str)
+end
+
+if fmt then fmt=string.lower(fmt) end
+
+return fmt
+end
+
+
 function FontConfigParseDescription(input)
 local font, toks, path, style, str
 
@@ -319,8 +336,7 @@ end
 
 font.category=FontsParseStyle(font, path)
 font.fileformat=filesys.extn(path)
-font.fontformat=filesys.extn(path)
-
+font.fontformat=FontDeduceFormat(path)
 return font
 end
 
@@ -407,7 +423,7 @@ local fonts={}
 local languages={}
 local categories={}
 
-P=GetCachedJSON("https://www.googleapis.com/webfonts/v1/webfonts?key="..API_KEY, "googlefonts")
+P=GetCachedJSON("https://www.googleapis.com/webfonts/v1/webfonts?key=" .. GOOGLEFONTS_API_KEY, "googlefonts")
 I=P:open("/items")
 
 item=I:next()
@@ -452,6 +468,63 @@ font.regular="https://www.fontsquirrel.com/fonts/download/" .. item:value("famil
 font.languages=""
 font.weight=""
 font.fileformat=".zip"
+font.fontformat=filesys.extn(item:value("font_filename"))
+FontListAdd(categories, font)
+
+item=P:next()
+end
+
+return categories
+end
+
+
+function FontSourceGetFontDetails(font)
+local P, item, list
+local categories={}
+
+P=GetCachedJSON("http://api.fontsource.org/v1/fonts/" .. font.name, "fontsource.org:"..font.name)
+font.regular=P:value("/variants/400/normal/latin/url/ttf")
+font.italic=P:value("/variants/400/italic/latin/url/ttf")
+
+end
+
+
+
+function FontSourceGetSubsets(font_info)
+local subsets, item
+local str=""
+
+subsets=font_info:open("subsets")
+item=subsets:next()
+while item ~= nil
+do
+str=str..item:value()..","
+item=subsets:next()
+end
+
+return str
+end
+
+
+function FontSourceList()
+local P, item, font, list
+local categories={}
+
+P=GetCachedJSON("http://api.fontsource.org/v1/fonts", "fontsource.org")
+item=P:next()
+while item ~= nil
+do
+font={}
+font.name=item:value("id")
+font.foundry=item:value("type")
+font.title=item:value("family")
+font.style=item:value("category")
+font.license=item:value("license")
+font.category=FontsParseStyle(font, "")
+
+font.languages=FontSourceGetSubsets(item)
+font.weight=""
+font.fileformat=".ttf"
 font.fontformat=filesys.extn(item:value("font_filename"))
 FontListAdd(categories, font)
 
@@ -655,9 +728,6 @@ end
 function DownloadFontFile(font, destdir, variant)
 local url, fpath, str
 
-str=DownloadCheckForFontFile(destdir)
-if str ~= nil then return str end
-
 filesys.mkdirPath(destdir)
 filesys.chmod(destdir, "rwxrwxr-x")
 
@@ -675,6 +745,7 @@ return(DownloadCheckForFontFile(destdir))
 end
 
 
+
 function SetTerminalFont(font)
 Out:puts("\x1b]50;"..font.title.."\x07")
 Out:flush()
@@ -688,9 +759,13 @@ Out:move(0,Out:length()-4)
 path=font_root .. string.gsub(font.title, ' ', '_') .. "/"
 Out:puts(" ~b~eInstalling: '"..font.title.."' to "..path.."~0\n")
 
-if DownloadFontFile(font, path, "regular") ~= nil
-then
+DownloadFontFile(font, path, "regular")
 DownloadFontFile(font, path, "italic")
+DownloadFontFile(font, path, "bold")
+
+-- one of the above should have downloaded
+if DownloadCheckForFontFile(path) ~= nil
+then
 os.execute("/bin/sh -c 'cd " .. strutil.quoteChars(path, ' ') .. "; mkfontscale; mkfontdir; fc-cache -fv &>/dev/null'")
 Out:puts(" ~g~eOKAY: installed font '"..font.title.."' to "..path.."~0 PRESS ANY KEY\n")
 else
@@ -703,18 +778,41 @@ end
 
 
 
-function PreviewGenerate(path, format, pointsize, height, line1, line2, line3)
-local str, width
+function PreviewGenerate(path, style, format, pointsize, height, line1, line2, line3, line4, line5)
+local str, width, line, i
+local lines={}
+local pos=0
 
-width=string.format("%d", Out:width() * 6)
+table.insert(lines, line1)
+table.insert(lines, line2)
+table.insert(lines, line3)
+table.insert(lines, line4)
+table.insert(lines, line5)
 
-str="convert -font '" .. path.. "' -pointsize " .. tostring(pointsize) 
-str=str.." -fill '#000000' -size " .. tostring(width) .. "x" .. tostring(height)
-str=str.." -gravity center xc:"
-if strutil.strlen(line1) > 0 then str=str .. " -annotate +0-40 '" .. line1 .. "'" end
-if strutil.strlen(line2) > 0 then str=str .. " -pointsize 24 -annotate +0+0 '" .. line2 .."'" end
-if strutil.strlen(line3) > 0 then str=str .. " -annotate +0+30 '" .. line3 .. "'" end
-if strutil.strlen(line4) > 0 then str=str .. " -annotate +0+60 '" .. line4 .."'" end
+if style=="terminal"
+then
+width=string.format("%d", (pointsize +2) * 40)
+else width=string.format("%d", Out:width() * 6)
+end
+
+str="convert -font '" .. path .. "' -pointsize " .. tostring(pointsize) 
+str=str.." -size " .. tostring(width) .. "x" .. tostring(height)
+
+if style == "terminal"
+then
+pos=20
+str=str.." -background black -fill green gravity left xc:"
+else
+--pos=-40
+str=str.." -fill '#000000' -gravity center xc:"
+end
+
+for i,line in ipairs(lines)
+do
+if strutil.strlen(line) > 0 then str=str .. " -annotate +10+" .. tostring(pos)..  " '" .. line .. "'" end
+pos = pos + pointsize + 6
+end
+
 str=str.." -flatten "
 
 if format=="sixel" then str=str.."sixel:"..settings.preview_dir.."/preview.six "
@@ -733,7 +831,7 @@ function PreviewOneLine(font_name, path, format)
 
 if settings.use_sixel == true
 then
-PreviewGenerate(path, format, 24, 26,'ABCDEFGHIK abcdefghijk 0123456789')
+PreviewGenerate(path, "", format, 24, 26,'ABCDEFGHIK abcdefghijk 0123456789')
 os.execute("cat "..settings.preview_dir.."/preview.six")
 end
 
@@ -741,14 +839,25 @@ end
 
 
 
-function PreviewFont(font, use_sixel, x, y)
-local str, path
+function PreviewFont(font, use_sixel, x, y, style, line1, line2, line3, line4, line5)
+local str, path, destdir
+local pointsize=26
+local height=200
+
+if style=="terminal"
+then
+pointsize=14
+end
 
 Out:move(1,Out:height() -2)
 Out:puts("~mDownloading preview. Please wait.~>~0")
 str=string.gsub(font.title, ' ', '_')
-path=settings.preview_dir .. str.."/"
-path=DownloadFontFile(font, path, "regular")
+destdir=settings.preview_dir .. str.."/"
+
+path=DownloadCheckForFontFile(destdir)
+if path == nil then path=DownloadFontFile(font, destdir, "regular") end
+
+
 Out:move(1,Out:height() -2)
 Out:puts("~>")
 
@@ -757,11 +866,11 @@ then
 if use_sixel==true
 then
 	Out:move(x, y)
-	PreviewGenerate(path, "sixel", 26, 200, font_title, "The Quick Brown Fox", "Jumped Over the Lazy Dog")
+	PreviewGenerate(path, style, "sixel", pointsize, height, line1, line2, line3, line4, line5)
 	--filesys.copy("preview.six", "-")
 	os.execute("cat " .. settings.preview_dir .. "/preview.six")
 else
-	PreviewGenerate(path, "png", 26, 200, font_title, "The Quick Brown Fox", "Jumped Over the Lazy Dog")
+	PreviewGenerate(path, style, "png", pointsize, height, line1, line2, line3, line4, line5)
 	os.execute(settings.image_viewer .. " ".. settings.preview_dir .. "/preview.png")
 end
 
@@ -797,13 +906,30 @@ end
 
 
 function BottomBar(text)
-local str
+local str, toks, line, i
+local lines={}
 
-Out:move(0,Out:height()-1)
-str=terminal.strtrunc(text, Out:width())
+toks=strutil.TOKENIZER(text, "\n")
+line=toks:next()
+while line ~= nil
+do
+table.insert(lines, line)
+line=toks:next()
+end
 
--- add this after truncate, as we need to have it whatever
-str=str .. "~>~0"
+
+str=""
+Out:move(0,Out:height() - (#lines))
+for i, line in ipairs(lines)
+do
+if i > 1 then str=str.."\n" end
+str=str..terminal.strtrunc(line, Out:width()) .."~>"
+end
+
+-- add this after truncate, as we need to go back to normal colors 
+-- and can't afford to have this cut off by truncate
+str=str .. "~0"
+
 Out:puts(str)
 end
 
@@ -813,11 +939,20 @@ BottomBar("~B~yKeys: ~wup,w,i~y:move selection up  ~wdown,s,k~y:move selection d
 end
 
 
+function DisplayFontInfoBottomBar(font, source)
+local str
+
+str="~B~y~eKeys:~0~B ~wv~y:view ~wx~y:mock terminal ~wt~y:set terminal font "
+if source ~= "installed" then str=str.. " ~wi~y:install font for user  ~wg~y:install font systemwide\n" end
+str=str.."~wescape,backspace,left~y:back"
+BottomBar(str)
+end
 
 
 function DisplayFontInfo(font, source) 
 local ch, S, str
 
+if source == "fontsource.org" then FontSourceGetFontDetails(font) end
 
 while true
 do
@@ -829,28 +964,28 @@ Out:puts("\n")
 str="~eFoundry:~0 " .. tostring(font.foundry)
 if strutil.strlen(font.license) == 0 then str=str.."  ~eLicense:~0 ~runknown~0\n"
 else str=str..("  License: " .. font.license) .."\n" end
-str=str.."~eCategory:~0 " .. font.category .. "  ~eStyle:~0 " .. font.style.. "  ~eWeight:~0"..font.weight.."\n"
+str=str.."~eCategory:~0 " .. font.category .. "  ~eStyle:~0 " .. font.style.. "  ~eWeight:~0 "..font.weight.."\n"
 Out:puts(str)
 Out:puts("~eLanguages:~0 " .. font.languages .. "\n")
 if strutil.strlen(font.description) > 0 then Out:puts("~eDescription:~0 "..font.description.."\n") end
 
-if font.fileformat==".pcf" or font.fileformat==".pcf.gz" then Out:puts("\n~rThis is a PCF font, preview will likely not work~0\n"); end
-if font.fileformat==".otb" or font.fileformat==".otb.gz" then Out:puts("\n~rThis is an OTB font, preview will likely not work~0\n"); end
+if font.fileformat==".bdf" then Out:puts("\n~rThis is a BDF font, preview will likely not work~0\n"); end
+if font.fileformat==".pcf" then Out:puts("\n~rThis is a PCF font, preview will likely not work~0\n"); end
+if font.fileformat==".otb" then Out:puts("\n~rThis is an OTB font, preview will likely not work~0\n"); end
 
-if source == "installed" then BottomBar("~B~yKeys: ~wv~y:launch viewer  ~wescape~y:back  ~wbackspace~y:back")
-else BottomBar("~B~yKeys: ~wv~y:launch viewer  ~wi~y:install font for user  ~wg~y:install font systemwide  ~wescape~y:back  ~wbackspace~y:back")
-end
 
+DisplayFontInfoBottomBar(font, source)
 if settings.use_sixel == true
 then
-PreviewFont(font, true, 2, 6)
+PreviewFont(font, true, 2, 6, "", "The Quick Brown Fox", "Jumped Over The Lazy Dog", "1234567890")
 end
 
 ch=Out:getc()
 if ch == 'd' then filesys.copy(font.regular, font.name..".ttf")
 elseif ch == 'i' then InstallFont(font, process.getenv("HOME").."/.local/share/fonts/", false)
 elseif ch == 'g' then InstallFont(font, settings.fonts_dir, true)
-elseif ch == 'v' then PreviewFont(font, false)
+elseif ch == 'v' then PreviewFont(font, false, 0, 0, "", "The Quick Brown Fox", "Jumped Over The Lazy Dog", "1234567890")
+elseif ch == 'x' then PreviewFont(font, false, 0, 0, "terminal", " user@server1: kill -9 thegibson", " bash: kill: (20344) - Operation not permitted", " user@server1: hack the planet", " bash: hack: command not found", "user@server1: _")
 elseif ch == 't' then SetTerminalFont(font)
 elseif ch == 'ESC' then break
 elseif ch == 'LEFT' then break
@@ -959,7 +1094,6 @@ do
 	elseif font.fontformat==".pfb" then item="~m"..PadStr("pfb", 6).."~0"
 	elseif font.fontformat==".pcf" then item="~r"..PadStr("pcf", 6).."~0"
 	elseif font.fontformat==".bdf" then item="~r"..PadStr("bdf", 6).."~0"
-	elseif font.fontformat==".pcf.gz" then item="~r"..PadStr("pcf", 6).."~0"
 	else item=PadStr(font.fontformat, 6)
 	end
 
@@ -1038,6 +1172,7 @@ Menu=terminal.TERMMENU(Out, 1, 6, Out:width()-2, 10)
 Menu:add("Locally Installed Fonts", "installed")
 Menu:add("Fonts from Googlefonts", "googlefonts")
 Menu:add("Fonts from FontSquirrel", "fontsquirrel")
+Menu:add("Fonts from FontSource.org", "fontsource.org")
 Menu:add("Fonts from Elsewhere", "elsewhere")
 Menu:add("Fonts from Mozilla", "mozilla")
 
@@ -1049,6 +1184,7 @@ then
 	if selection=="installed" then list=InstalledFontsList() end
 	if selection=="googlefonts" then list=GoogleFontsList() end
 	if selection=="fontsquirrel" then list=FontSquirrelList() end
+	if selection=="fontsource.org" then list=FontSourceList() end
 	if selection=="elsewhere" then list=ElsewhereFontsList() end
 	if selection=="mozilla" then list=CDNList("https://code.cdn.mozilla.net/") end
 end

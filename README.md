@@ -9,7 +9,7 @@ Email: colums.projects@gmail.com
 SYNOPSIS
 ========
 
-Fontporter is a terminal font viewer and installer that supports font previews using the sixel system, allowing graphics to be viewed in supporting terminals such as xterm. It can install fonts from googlefonts, fontsquirrel, Mozilla's CDN and from a list of font's available 'elsewhere'.
+Fontporter is a terminal font viewer and installer that supports font previews using the sixel system, allowing graphics to be viewed in supporting terminals such as xterm. It can install fonts from googlefonts, fontsquirrel, fontsource.org, Mozilla's CDN and from a list of font's available 'elsewhere'.
 
 INSTALL
 =======
@@ -48,7 +48,7 @@ The app is menu-driven, and can be navigated using the arrow keys, or w,s,enter,
 PREVIEW
 =======
 
-Fonts can be previewed either by activating sixel mode or by pressing 'v' in the font screen. The 'v' key activates a font viewer, currently one of "display", "feh", "fim", "sxiv", "xv", "giv" or "meh". (If you want to use another image viewer than just find the line in the .lua script and add the program name there).
+Fonts can be previewed either by activating sixel mode or by pressing 'v' in the font screen. The 'v' key activates a font viewer, currently one of "display", "feh", "fim", "sxiv", "xv", "giv" or "meh". (If you want to use another image viewer use the '-viewer' command-line option).
 
 Preview requires image magick's 'convert' command to be available.
 
