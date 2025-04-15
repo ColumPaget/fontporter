@@ -9,16 +9,20 @@ Email: colums.projects@gmail.com
 SYNOPSIS
 ========
 
-Fontporter is a terminal font viewer and installer that supports font previews using the sixel system, allowing graphics to be viewed in supporting terminals such as xterm. It can install fonts from googlefonts, fontsquirrel, fontsource.org, Mozilla's CDN and from a list of font's available 'elsewhere'.
+Fontporter is a terminal font viewer and installer that supports font previews using the sixel system, allowing graphics to be viewed in supporting terminals such as xterm. It can install fonts from googlefonts, fontsquirrel, fontsource.org, nerdfonts.com, omnibus-type, Mozilla's CDN and from a list of fonts available 'elsewhere'.
 
 INSTALL
 =======
 
 Fontporter requires both libUseful (https://github.com/ColumPaget/libUseful) and libUseful-lua (https://github.com/ColumPaget/libUseful-lua) to be installed. Font preview requires image magick to be installed (at least the 'convert' command) in order to create the preview image. 
 
-Fontporter consists of a single 'fontporter.lua' file that you can place somewhere in your path. You can either run it as 'lua fontporter.lua' or, as I do, use linux's binfmt system to automatically invoke lua.
+The fontporter code is broken up into modules, but the combined 'fontporter.lua' executable ships with the source. You can rebuild it with 'make' if you change anything in the modules.
 
-There's also a 'fonts-elsewhere.conf' file that can either be put in the '/etc' or '~/.config/fontporter/' that supplies a list of fonts available on the internet.
+You can either run it as 'lua fontporter.lua' or, as I do, use linux's binfmt system to automatically invoke lua.
+
+`make install` will copy fontporter.lua to the 'bin' directory in the users home directory, it will also copy the 'fonts-elsewhere.conf' file that lists fonts online to `.config/fontporter/` in the users home directory. Alternatively you can copy `fontporter.lua` manually to somewhere in your `$PATH`.
+
+The 'fonts-elsewhere.conf' file that can either be put in the '/etc' or '/etc/fontporter.d' in order to make it accessible to all users on a system. 
 
 
 USAGE

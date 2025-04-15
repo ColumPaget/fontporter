@@ -1,0 +1,23 @@
+v3.0
+* added omnibus-type website/download
+* added nerdfonts.com website/download
+* split code into seperate modules
+* move webpage cache to ~/.local/cache/fontporter/
+* don't use webpage cache if file older than one hour
+* 'set terminal font' now works with more fonts
+* handle terminal resize
+
+
+v2.0 (2023-07-06)
+* added fontsource.org support and 'mock terminal' feature
+* googlefonts fix for older libUseful versions
+* fix README.md
+* added more image viewers
+
+v1.1 (2023-07-03)
+* fix googlefonts
+* fix issues with display 
+* Rationalize sixel/preview code
+
+v1.0 (2022-09-04)
+* initial release
