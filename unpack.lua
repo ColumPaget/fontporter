@@ -13,6 +13,38 @@ return ""
 end
 
 
+
+function RationalizeDirectory(destdir, currdir)
+local item, Glob, info
+
+Glob=filesys.GLOB(currdir.."/*")
+item=Glob:next()
+while item ~= nil
+do
+	info=Glob:info()
+
+	if info.type=="directory" then RationalizeDirectory(destdir, item)
+	elseif filesys.extn(item) == ".ttf" then filesys.rename(item, destdir.."/"..filesys.basename(item))
+	elseif filesys.extn(item) == ".otf" then filesys.rename(item, destdir.."/"..filesys.basename(item))
+	elseif filesys.extn(item) == ".otb" then filesys.rename(item, destdir.."/"..filesys.basename(item))
+	elseif filesys.extn(item) == ".pfa" then filesys.rename(item, destdir.."/"..filesys.basename(item))
+	elseif filesys.extn(item) == ".pfb" then filesys.rename(item, destdir.."/"..filesys.basename(item))
+	elseif filesys.extn(item) == ".pcf" then filesys.rename(item, destdir.."/"..filesys.basename(item))
+	elseif filesys.extn(item) == ".bdf" then filesys.rename(item, destdir.."/"..filesys.basename(item))
+	elseif filesys.extn(item) == ".txt" then filesys.rename(item, destdir.."/"..filesys.basename(item))
+	elseif filesys.extn(item) == ".md" then filesys.rename(item, destdir.."/"..filesys.basename(item))
+	end
+
+	item=Glob:next()
+end
+
+filesys.rmdir(currdir)
+end
+
+
+
+
+
 function UnpackFontFile(font, destdir, url, fpath)
 local str
 

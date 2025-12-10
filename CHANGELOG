@@ -1,3 +1,9 @@
+v4.0 (2025-12-10)
+* added sentyfonts website/download
+* completely reworked 'font style' system so fonts can be in multiple categories
+* parse language info for local fonts
+* added more 'fonts elsewhere' fonts
+
 v3.0 (2025-04-16)
 * added omnibus-type website/download
 * added nerdfonts.com website/download

@@ -2,8 +2,6 @@
 
 function GoogleFontsList()
 local P, I, item, font
-local fonts={}
-local languages={}
 local categories={}
 
 P=GetCachedJSON("https://www.googleapis.com/webfonts/v1/webfonts?key=" .. GOOGLEFONTS_API_KEY, "googlefonts")
@@ -16,14 +14,15 @@ font={}
 font.name=item:value("family")
 font.title=font.name
 font.style=item:value("category")
-font.category=FontsParseStyle(font, "")
 
 font.regular=item:value("files/regular")
 font.italic=item:value("files/italic")
-font.languages=FontLanguages(item)
+font.languages=ParserListToString(item:open("subsets"))
+
 font.fileformat=filesys.extn(font.regular)
 font.fontformat=filesys.extn(font.regular)
 font.weight=""
+
 FontListAdd(categories, font)
 
 item=I:next()

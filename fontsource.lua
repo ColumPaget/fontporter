@@ -12,21 +12,6 @@ end
 
 
 
-function FontSourceGetSubsets(font_info)
-local subsets, item
-local str=""
-
-subsets=font_info:open("subsets")
-item=subsets:next()
-while item ~= nil
-do
-str=str..item:value()..","
-item=subsets:next()
-end
-
-return str
-end
-
 
 function FontSourceList()
 local P, item, font, list
@@ -44,7 +29,7 @@ font.style=item:value("category")
 font.license=item:value("license")
 font.category=FontsParseStyle(font, "")
 
-font.languages=FontSourceGetSubsets(item)
+font.languages=ParserListToString(item:open("subsets"))
 font.weight=""
 font.fileformat=".ttf"
 font.fontformat=filesys.extn(item:value("font_filename"))

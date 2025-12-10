@@ -68,7 +68,6 @@ end
 
 font.fileformat=filesys.extn(font.regular)
 font.fontformat="otf"
-font.category=FontsParseStyle(font, "")
 
 
 return font

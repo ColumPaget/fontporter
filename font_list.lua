@@ -19,17 +19,19 @@ end
 function FontListAdd(categories, font)
 local toks, tok
 
-FontCategoryAdd(categories, font, font.category)
 
---[[ this was a bit of a disaster
-toks=strutil.TOKENIZER(font.languages, ",")
+--FontCategoryAdd(categories, font, font.category)
+
+if strutil.strlen(font.fileformat) == 0 then font.fileformat=filesys.extn(font.regular) end
+font.category=FontsParseStyle(font, "")
+
+toks=strutil.TOKENIZER(font.category, ",")
 tok=toks:next()
 while tok ~= nil
 do
 FontCategoryAdd(categories, font, tok)
 tok=toks:next()
 end
-]]--
 
 end
 

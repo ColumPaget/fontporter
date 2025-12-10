@@ -10,6 +10,41 @@ require("xml")
 require("net")
 require("time")
 
+-- these are commonly used utility functions
+
+
+function TableToString(table)
+local i,value
+local retstr=""
+
+for i,value in ipairs(table)
+do
+if retstr == "" then retstr=value
+else retstr=retstr..","..value
+end
+end
+
+return retstr
+end
+
+
+function ParserListToString(P)
+local item
+local str=""
+
+if P ~= nil
+then
+  item=P:next()
+  while item ~= nil
+  do
+        str=str..item:value()..","
+        item=P:next()
+  end
+end
+
+return str
+end
+
 -- default settings for fontporter
 
 function InitSettings()
@@ -115,17 +150,19 @@ end
 function FontListAdd(categories, font)
 local toks, tok
 
-FontCategoryAdd(categories, font, font.category)
 
---[[ this was a bit of a disaster
-toks=strutil.TOKENIZER(font.languages, ",")
+--FontCategoryAdd(categories, font, font.category)
+
+if strutil.strlen(font.fileformat) == 0 then font.fileformat=filesys.extn(font.regular) end
+font.category=FontsParseStyle(font, "")
+
+toks=strutil.TOKENIZER(font.category, ",")
 tok=toks:next()
 while tok ~= nil
 do
 FontCategoryAdd(categories, font, tok)
 tok=toks:next()
 end
-]]--
 
 end
 
@@ -200,37 +237,50 @@ end
 
 -- functions related to font styles, sans, serif, monospace etc
 
+font_style_aliases={
+serif={"roman"},
+greek={"greek"},
+display={"display", "grunge", "stencil", "novelty", "signwriting", "signage", "retro", "woodcut"},
+blackletter={"blackletter", "medieval", "medeival", "gothic", "woodcut"},
+handwriting={"script", "handwriting", "handdrawn"},
+calligraphy={"caligraphic", "calligraphic", "caligraphy", "calligraphy"},
+monospace={"mono", "monospace", "monospaced", "pixel", "programming", "typewriter","courier"},
+sans_serif={"sans", "sans%-serif","sans%-serif","sans serif", "humanist"},
+slab_serif={"slab", "slab%-serif", "slab%-serif", "slab serif"},
+light={"light", "thin", "extralight"},
+barcode={"barcode","code128","code38"},
+music={"music", "score"},
+comic={"comic", "cartoon"},
+italic={"italic", "oblique"},
+bold={"bold"},
+cyrillic={"russian","ukrainian","bulgarian","bosnian","serbian","belarusian","tatar","tajik"},
+native_american={"cree","cherokee","algonquian","ojibwe","osage","yugtun"},
+mesoamerican={"aztec","maya","olmec","toltec","mixtec","zaptoec"},
+chinese={"chinese", "pinyin"},
+india={"hindi","devanagari", "bangla", "bengali", "urdu", "kannada","gujarati", "gurumukhi", "gurmukhi", "malayalam", "odia", "tamil","telugu", "telugua", "meitei", "gupta", "sanskrit","brahmic"},
+korean={"hangul", "korean"},
+persian={"farsi", "persian"},
+other_asian={"khmer","tibetan", "philippine","rohingya", "myanmar","hmong","Butuan","javanese","mongolian","thai", "sindhi"},
+symbol={"symbol", "emoji", "math", "music"},
+historical={"ancient", "old%-", "proto%-", "ogham", "phoenician", "runic", "runes", "elamite", "sogdian", "nabataean", "demotic", "meroitic","hieratic", "hieroglyphs", "cuneiform", "linear%-a", "linear%-b", "lycian", "lydian", "manichean", "manichaean", "byblos", "tocharian", "tangut", "khitan", "kushan", "minoan", "aramaic", "pahlavi", "parthian", "jurchen", "avestan", "mycenaean","indus", "woodcut"},
+fictional={"klingon", "vulcan", "mandel", "elvish", "quenya", "tengwar", "sindarin", "sarati", "cirth", "aurebesh", "galactic"},
+sci_fi={"klingon","vulcan","galactic","spacey","sci%-fi","alien","martian","star%-","futuristic"},
+fantasy={"elvish", "tengwar", "sarati", "cirth", "orcish", "fantasy", "quenya", "sindarin", "lovecraft", "woodcut"},
+japanese={"hiragana", "katakana"}
+}
 
-function FontStyleCTX()
-local ctx={}
 
-ctx.italic=false 
-ctx.bold=false
-ctx.sans=false
-ctx.serif=false
-ctx.slab=false
-ctx.blackletter=false
-ctx.light=false
-ctx.script=false
-ctx.monospace=false
-ctx.display=false
-ctx.symbol=false
-ctx.retro=false
-ctx.comic=false
-ctx.barcode=false
-ctx.music=false
+root_font_styles={"regular", "sans_serif", "slab_serif", "monospace", "bold", "bold light", "bold italic", "italic", "light", "handwriting", "calligraphy", "display", "historical", "fictional", "sci_fi", "fantasy", "blackletter", "comic", "symbol", "emoji", "barcode", "music", "math", "braille", "cjk", "cyrillic", "arabic", "greek", "hebrew", "persian", "chinese", "japanese", "korean", "india", "tibetan", "vietnamese", "other_asian",  "native_american", "mesoamerican"}
 
-return ctx
-end
+
 
 
 -- turn a font style into a number in a list (used in 'font style compare' to order fonts)
 function FontStyleEnumerate(style)
-local styles={"regular", "serif", "sans-serif", "slab-serif", "monospace", "bold", "bold light", "bold italic", "italic", "light", "script", "display", "retro", "blackletter", "comic", "symbol"}
 local i, found
 
 if style == nil then return 0 end
-for i,found in ipairs(styles)
+for i,found in ipairs(root_font_styles)
 do
   if found == style then return i end
 end
@@ -250,128 +300,120 @@ return i1 < i2
 end
 
 
-function FontStyleExamineString(ctx, str)
+
+
+function FontStyleMatchMembers(style, members) 
+local i, candidate
+
+if style ~= nil
+then
+for i,candidate in ipairs(members)
+do
+	if string.find(style, candidate) ~= nil then return candidate end
+end
+end
+
+return nil 
+end
+
+
+function FontStyleMatch(styles, input)
+local category, members, found
+local retstr=""
+
+tok=FontStyleMatchMembers(input, root_font_styles)
+if strutil.strlen(tok) > 0 then styles[tok]=tok end
+
+for category,members in pairs(font_style_aliases)
+do
+  found=FontStyleMatchMembers(input, members) 
+  if found ~= nil then styles[category]=found end
+end
+
+end
+
+
+function FontStyleExamineString(styles, input)
 local toks, tok
 
-toks=strutil.TOKENIZER(str, "\\S|,", "m")
-tok=toks:next()
-while tok ~= nil
-do
- tok=string.lower(tok)
- if tok=="barcode" then ctx.barcode=true end
- if tok=="music" then ctx.music=true end
- if tok=="grunge" then ctx.display=true end
- if tok=="comic" then ctx.comic=true end
- if tok=="retro" then ctx.retro=true end
- if tok=="stencil" then ctx.display=true end
- if tok=="display" then ctx.display=true end
- if tok=="novelty" then ctx.display=true end
- if tok=="italic" then ctx.italic=true end
- if tok=="oblique" then ctx.italic=true end
- if tok=="bold" then ctx.bold=true end
- if tok=="serif" then ctx.serif=true end
- if tok=="sans" then ctx.sans=true end
- if tok=="sans-serif" then ctx.sans=true end
- if tok=="sans serif" then ctx.sans=true end
- if tok=="slab" then ctx.slab=true end
- if tok=="slab-serif" then ctx.slab=true end
- if tok=="slab serif" then ctx.slab=true end
- if tok=="blackletter" then ctx.blackletter=true end
- if tok=="medieval" then ctx.blackletter=true end
- if tok=="roman" then ctx.serif=true end
- if tok=="thin" then ctx.light=true end
- if tok=="light" then ctx.light=true end
- if tok=="extralight" then ctx.light=true end
- if tok=="script" then ctx.script=true end
- if tok=="handwriting" then ctx.script=true end
- if tok=="caligraphic" then ctx.script=true end
- if tok=="calligraphic" then ctx.script=true end
- if tok=="handdrawn" then ctx.script=true end
- if tok=="pixel" then ctx.monospace=true end
- if tok=="mono" then ctx.monospace=true end
- if tok=="monospace" then ctx.monospace=true end
- if tok=="monospaced" then ctx.monospace=true end
- if tok=="programming" then ctx.monospace=true end
- if tok=="typewriter" then ctx.monospace=true end
- if tok=="symbol" then ctx.symbol=true end
- if tok=="cursor" then ctx.symbol=true end
- if tok=="dingbat" then ctx.symbol=true end
- if tok=="wingdings" then ctx.symbol=true end
- if tok=="icon" then ctx.symbol=true end
- if tok=="emoji" then ctx.symbol=true end
-tok=toks:next()
+if input==nil then return end
+
+
+if strutil.strlen(input) > 0
+then
+  toks=strutil.TOKENIZER(input, "\\S|,", "m")
+  tok=toks:next()
+  while tok ~= nil
+  do
+   tok=string.lower(tok)
+   FontStyleMatch(styles, tok)
+  
+   tok=toks:next()
+  end
 end
 
 end
+
 
 
 -- try to figure out the style of a font
 -- this is an involved process as people will -- call fonts many things, for example
 -- 'cursive' 'handwriting', 'script', 'handdrawn' can all relate to the same style
 function FontsParseStyle(font, filename)
-local toks, tok, str, ctx
+local styles={}
+local retstr=""
 
-ctx=FontStyleCTX()
+FontStyleExamineString(styles, font.style)
+FontStyleExamineString(styles, font.info)
+FontStyleExamineString(styles, font.languages)
 
-
-if strutil.strlen(font.spacing) > 0 then ctx.monospace=true end
-
-str=string.lower(filename)
-if string.find(str, "handwriting") ~= nil then ctx.script=true end
-if string.find(str, "barcode") ~= nil then ctx.barcode=true end
-if string.find(str, "roman") ~= nil then ctx.serif=true end
-if string.find(str, "slab") ~= nil then ctx.slab=true end
-if string.find(str, "stencil") ~= nil then ctx.display=true end
-
-if string.find(str, "sans") ~= nil then ctx.sans=true
-elseif string.find(str, "serif") ~= nil then ctx.serif=true end
-
-str=string.lower(font.title)
-if string.find(str, "handwriting") ~= nil then ctx.script=true end
-if string.find(str, "barcode") ~= nil then ctx.barcode=true end
-if string.find(str, "roman") ~= nil then ctx.serif=true end
-if string.find(str, "slab") ~= nil then ctx.slab=true end
-if string.find(str, "stencil") ~= nil then ctx.display=true end
-if string.find(str, "mono") ~= nil then ctx.monospace=true end
-if string.find(str, "symbol") ~= nil then ctx.symbol=true end
-
-if string.find(str, "sans") ~= nil then ctx.sans=true
-elseif string.find(str, "serif") ~= nil then ctx.serif=true end
-
-
-FontStyleExamineString(ctx, font.style)
-FontStyleExamineString(ctx, font.info)
-
-if ctx.symbol == true then return("symbol") end
-if ctx.music == true then return("music") end
-if ctx.barcode == true then return("barcode") end
-if ctx.comic == true then return("comic") end
-if ctx.retro == true then return("retro") end
-if ctx.script == true then return("script") end
-if ctx.blackletter == true then return("blackletter") end
-if ctx.slab == true then return("slab-serif") end
-if ctx.display == true then return("display") end
-if ctx.monospace == true then return("monospace") end
-
-if ctx.italic == true 
-then 
-if ctx.bold == true then return("bold italic") end
-if ctx.light == true then return("bold light") end
-return("italic") 
+for name,value in pairs(styles)
+do
+retstr=retstr..name..","
 end
 
-if ctx.bold == true then return("bold") end
-if ctx.light == true then return("light") end
+if strutil.strlen(retstr)==0 then retstr="regular" end
 
---sans must come before serif, as a font could have both set
-if ctx.sans == true then return("sans-serif") end
-if ctx.serif == true then return("serif") end
-
-return("regular")
-
+return retstr
 end
 
 -- functions relating to the 'fontconfig' utility
+
+
+
+function FontDeduceFormat(path)
+local fmt, str
+
+fmt=filesys.extn(path)
+if fmt == ".gz" or fmt == ".bz2" or fmt == ".xz"
+then
+str=filesys.filename(path)
+fmt=filesys.extn(str)
+end
+
+if fmt then fmt=string.lower(fmt) end
+
+return fmt
+end
+
+
+function FontConfigConvertLangCodes(font)
+local locales={ ar="arabic", be="belarusian", bn="bengali", bo="tibetan", bs="bosnian", de="german", en="english", el="greek", es="spanish", fr="french", it="italian", hi="hindi", cr="cree", chr="cherokee", fa="persian", ga="gujarati", he="hebrew", iw="hebrew", hr="croat", hu="hungarian", ia="interlingua", io="ido", is="icelandic", jp="japanese", km="khmer", ko="korean", kn="kannada", la="latin", lt="lithuanian", mk="macedonian", ml="malayalam", mn="mongolian", nl="dutch", oj="ojibwa", pl="polish", pt="portuguese", qya="quenya", ru="russian", sa="sanskrit", si="sinhala", sjn="sindarin", so="somali", sr="serbian", ss="swati", sw="swahili", sv="swedish", ta="tamil", te="telugu", th="thai", tlh="klingon", tg="tajik", tr="turkish", tt="tatar", ug="uighur", uk="ukrainian", ur="urdu", vi="vietnamese", xh="xhosa", zh="chinese", zu="zulu"}
+local toks, tok
+
+toks=strutil.TOKENIZER(font.langcodes, "|")
+tok=toks:next()
+while tok ~= nil
+do
+pos=string.find(tok, '-')
+if pos ~= nil and pos > 0 then tok=string.sub(tok, 1, pos-1) end
+if locales[tok] ~= nil then font.languages=font.languages .. locales[tok].."," end
+tok=toks:next()
+end
+
+end
+
+
 
 function FontConfigParseDescription(input)
 local font, toks, path, style, str
@@ -389,6 +431,7 @@ font.spacing=""
 font.foundry=""
 font.languages=""
 font.license=""
+font.langcodes=""
 
 str=toks:next()
 while str ~= nil
@@ -397,12 +440,18 @@ do
 	elseif string.sub(str, 1, 6) == "style=" then font.style=string.sub(str, 7)
 	elseif string.sub(str, 1, 8) == "spacing=" then font.spacing=string.sub(str, 9)
 	elseif string.sub(str, 1, 7) == "weight=" then font.weight=string.sub(str, 8)
-	--this produces huge long strings of country-codes, with is more trouble than help
-	--elseif string.sub(str, 1, 5) == "lang=" then font.languages=string.sub(str, 6)
+	elseif string.sub(str, 1, 5) == "lang=" then font.langcodes=string.sub(str, 6)
 	end
 str=toks:next()
 end
 
+if font.spacing=="100" 
+then 
+if font.style ~= "" then font.style=font.style.."," end
+font.style=font.style .."monospace" 
+end
+
+FontConfigConvertLangCodes(font)
 font.category=FontsParseStyle(font, path)
 font.fileformat=filesys.extn(path)
 font.fontformat=FontDeduceFormat(path)
@@ -532,6 +581,38 @@ return ""
 end
 
 
+
+function RationalizeDirectory(destdir, currdir)
+local item, Glob, info
+
+Glob=filesys.GLOB(currdir.."/*")
+item=Glob:next()
+while item ~= nil
+do
+	info=Glob:info()
+
+	if info.type=="directory" then RationalizeDirectory(destdir, item)
+	elseif filesys.extn(item) == ".ttf" then filesys.rename(item, destdir.."/"..filesys.basename(item))
+	elseif filesys.extn(item) == ".otf" then filesys.rename(item, destdir.."/"..filesys.basename(item))
+	elseif filesys.extn(item) == ".otb" then filesys.rename(item, destdir.."/"..filesys.basename(item))
+	elseif filesys.extn(item) == ".pfa" then filesys.rename(item, destdir.."/"..filesys.basename(item))
+	elseif filesys.extn(item) == ".pfb" then filesys.rename(item, destdir.."/"..filesys.basename(item))
+	elseif filesys.extn(item) == ".pcf" then filesys.rename(item, destdir.."/"..filesys.basename(item))
+	elseif filesys.extn(item) == ".bdf" then filesys.rename(item, destdir.."/"..filesys.basename(item))
+	elseif filesys.extn(item) == ".txt" then filesys.rename(item, destdir.."/"..filesys.basename(item))
+	elseif filesys.extn(item) == ".md" then filesys.rename(item, destdir.."/"..filesys.basename(item))
+	end
+
+	item=Glob:next()
+end
+
+filesys.rmdir(currdir)
+end
+
+
+
+
+
 function UnpackFontFile(font, destdir, url, fpath)
 local str
 
@@ -606,7 +687,6 @@ font.title=toks:next()
 font.name=font.title .. " - "..filesys.basename(path)
 font.style=toks:next()
 font.foundry=toks:next()
-font.category=FontsParseStyle(font, path)
 font.info=toks:next()
 font.license=toks:next()
 if font.license==nil then font.license="" end
@@ -661,21 +741,6 @@ end
 
 
 
-function FontSourceGetSubsets(font_info)
-local subsets, item
-local str=""
-
-subsets=font_info:open("subsets")
-item=subsets:next()
-while item ~= nil
-do
-str=str..item:value()..","
-item=subsets:next()
-end
-
-return str
-end
-
 
 function FontSourceList()
 local P, item, font, list
@@ -693,7 +758,7 @@ font.style=item:value("category")
 font.license=item:value("license")
 font.category=FontsParseStyle(font, "")
 
-font.languages=FontSourceGetSubsets(item)
+font.languages=ParserListToString(item:open("subsets"))
 font.weight=""
 font.fileformat=".ttf"
 font.fontformat=filesys.extn(item:value("font_filename"))
@@ -713,6 +778,8 @@ local P, item, font
 local categories={}
 
 P=GetCachedJSON("http://www.fontsquirrel.com/api/fontlist/all", "fontsquirrel")
+if P ~= nil
+then
 item=P:next()
 while item ~= nil
 do
@@ -721,7 +788,6 @@ font.name=item:value("family_name")
 font.foundry=item:value("foundry_name")
 font.title=font.name
 font.style=item:value("classification")
-font.category=FontsParseStyle(font, "")
 font.regular="https://www.fontsquirrel.com/fonts/download/" .. item:value("family_urlname")
 font.languages=""
 font.weight=""
@@ -731,6 +797,7 @@ FontListAdd(categories, font)
 
 item=P:next()
 end
+end
 
 return categories
 end
@@ -739,8 +806,6 @@ end
 
 function GoogleFontsList()
 local P, I, item, font
-local fonts={}
-local languages={}
 local categories={}
 
 P=GetCachedJSON("https://www.googleapis.com/webfonts/v1/webfonts?key=" .. GOOGLEFONTS_API_KEY, "googlefonts")
@@ -753,14 +818,15 @@ font={}
 font.name=item:value("family")
 font.title=font.name
 font.style=item:value("category")
-font.category=FontsParseStyle(font, "")
 
 font.regular=item:value("files/regular")
 font.italic=item:value("files/italic")
-font.languages=FontLanguages(item)
+font.languages=ParserListToString(item:open("subsets"))
+
 font.fileformat=filesys.extn(font.regular)
 font.fontformat=filesys.extn(font.regular)
 font.weight=""
+
 FontListAdd(categories, font)
 
 item=I:next()
@@ -863,7 +929,7 @@ function MozillaCDNList(url)
 local S, doc, toks, tag
 local categories={}
 
-S=stream.STREAM(url)
+S=CachedFileOpen(url, "mozilla.com")
 doc=S:readdoc()
 S:close()
 
@@ -899,19 +965,12 @@ font.license="SIL OFL 1.1"
 font.name=name
 font.title=font.name
 font.style="serif"
-font.languages=""
-font.category=FontsParseStyle(font, "")
 font.weight=0
 font.regular=url
 font.fileformat="otf"
 font.fontformat="otf"
 
---[[
-font.languages=FontLanguages(item)
-font.fileformat=filesys.extn(font.regular)
-font.fontformat=filesys.extn(font.regular)
-font.weight=""
-]]--
+font.languages=""
 
 FontListAdd(categories, font)
 end
@@ -923,36 +982,36 @@ end
 function OmnibusTypeFontsList()
 local S, doc, toks, item, font, name, url, download
 local fonts={}
-local languages={}
 local categories={}
 
 S=CachedFileOpen("https://www.omnibus-type.com/", "omnibus-type")
 if S ~= nil
 then
-doc=S:readdoc()
-S:close()
-
-toks=xml.XML(doc)
-item=toks:next()
-while item ~= nil
-do
-  if item.type ~= nil and string.lower(item.type) == "a"  
-	then
-
-	str=string.sub(item.data, 1, 41) 
-	if str == "href=\"https://www.omnibus-type.com/fonts/"
-	then
-	url=strutil.stripQuotes(string.sub(item.data, 6))
-	item=toks:next() -- <span>
-	item=toks:next()
-	name=item.data
-	download="https://www.omnibus-type.com/wp-content/uploads/" .. string.gsub(name, " ", "-") .. ".zip"
-  if name ~= nil and download ~= nil then OmnibusTypeFontAdd(categories, name, download) end
-	end
-
-	end
-item=toks:next()
-end
+  doc=S:readdoc()
+  S:close()
+  
+  toks=xml.XML(doc)
+  item=toks:next()
+  while item ~= nil
+  do
+    if item.type ~= nil and string.lower(item.type) == "a"  
+    then
+  
+  	str=string.sub(item.data, 1, 41) 
+  	if str == "href=\"https://www.omnibus-type.com/fonts/"
+  	then
+  	url=strutil.stripQuotes(string.sub(item.data, 6))
+  	item=toks:next() -- <span>
+  	item=toks:next()
+  	name=item.data
+  	download="https://www.omnibus-type.com/wp-content/uploads/" .. string.gsub(name, " ", "-") .. ".zip"
+  	if name ~= nil and download ~= nil then OmnibusTypeFontAdd(categories, name, download) end
+  	end
+  
+     end
+  item=toks:next()
+  end
+  
 end
 
 return(categories)
@@ -1028,7 +1087,6 @@ end
 
 font.fileformat=filesys.extn(font.regular)
 font.fontformat="otf"
-font.category=FontsParseStyle(font, "")
 
 
 return font
@@ -1062,98 +1120,139 @@ end
 return categories
 
 end
--- 'main', the entry point of the code is at the bottom of this
--- 'main' is currently a bit of a dumping ground for stuff that
--- doesn't go in any of the other modules, but it's mostly the
--- User Interface code
-
-GOOGLEFONTS_API_KEY="AIzaSyDQSLP4w0WE3UhvoSEtJmWtR1vhDgqMG7E"
-
-VERSION="3.0"
 
 
+function SentyFontsNameFromFile(filename)
+local pos, val, len, char, prev
+local name=""
 
+filename=strutil.httpUnQuote(filename)
 
+--correct some typos and other issues
+filename=string.gsub(filename, "SIlkRoad", "SilkRoad")
+filename=string.gsub(filename, "WoodCut", "Woodcut")
+filename=string.gsub(filename, "PaperCut", "Papercut")
 
-
-function FontSortCompare(f1, f2)
-
-if f1==nil and f2==nil then return false end
-if f1==nil then return true end
-if f2==nil then return false end
-if f1.name < f2.name then return true end
-return false
-end
-
-
-
-
-function FontLanguages(item)
-local P, I, str
-
-str=""
-P=item:open("subsets")
-I=P:next()
-while I ~= nil
+len=strutil.strlen(filename)
+for pos = 1,len
 do
-	str=str..I:value()..","
-	I=P:next()
+char=string.sub(filename, pos, pos)
+if char == '.' then break end
+
+val=string.byte(char)
+if val >= 65 and val <=90 and prev ~= " " then name=name.." " end
+name=name..char
+prev=char
 end
 
-return str
+return name
 end
 
 
+function SentyFontsStyleMatch(font_name, style_strings, style_name)
+local i, item
+local retstr=""
+
+for i,item in ipairs(style_strings)
+do
+  if string.find(font_name, item) ~= nil 
+  then 
+    if style_name==nil then retstr=retstr..item.."," 
+    else retstr=retstr..style_name..","
+    end
+  end
+end
+
+return retstr
+end
 
 
-function FontDeduceFormat(path)
-local fmt, str
+function SentyFontsGuessStyles(name)
+local str, i, item
+local style_strings={"woodcut", "calligraphy", "handwriting"}
+local handwriting={"senty orchid", "senty donut", "senty sigua", "senty creek", "senty fountain pen", "hanyi senty scholar", "hanyi senty bubble tea", "senty caramal", "hanyi senty joy", "hanyi senty silk road", "hanyi senty diary", "hanyi senty journal", "hanyi senty cream puff", "hanyi senty pea","hanyi senty tea", "hanyi senty sea spray", "senty vanlilla", "senty tamarind"}
+local display={"inscription", "senty ethereal wander", "senty watermelon", "movable type", "fun park", "chocolate", "sandlewood", "hanyi senty pastels", "chalk", "graffiti", "crayon","papercut"}
+local calligraphy={"scroll", "brush", "senty cloud", "scholar", "suci tablet", "zhangjizhi", "encyclopedia", "hanyi senty wen","senty zhao"}
+local historical={"song", "tang"}
+local style=""
 
-fmt=filesys.extn(path)
-if fmt == ".gz" or fmt == ".bz2" or fmt == ".xz"
+str=string.lower(name)
+
+style=style..SentyFontsStyleMatch(str, style_strings)
+style=style..SentyFontsStyleMatch(str, handwriting, "handwriting")
+style=style..SentyFontsStyleMatch(str, display, "display")
+style=style..SentyFontsStyleMatch(str, historical, "historical")
+style=style..SentyFontsStyleMatch(str, calligraphy, "calligraphy")
+
+if style == "" then return "regular" end
+return style
+end
+
+
+function SentyFontsLoadFont(link) 
+local url
+local font={}
+
+link=strutil.stripQuotes(link)
+
+if filesys.extn(link) ~= ".ttf" then return null end
+
+font.foundry="sentyfont.com"
+font.license="Non Commercial"
+font.category=""
+font.languages="latin,chinese"
+font.weight=0
+font.regular="https://www.sentyfont.com/" .. link
+
+font.name=filesys.basename(link)
+font.title=SentyFontsNameFromFile(font.name)
+font.style=SentyFontsGuessStyles(font.title)
+
+return font
+end
+
+
+function SentyFontsParseAnchor(categories, data)
+local toks, tok, font
+
+toks=strutil.TOKENIZER(data, " ")
+tok=toks:next()
+while tok ~= nil
+do
+    if string.sub(tok, 1, 5)=="href="
+    then 
+    font=SentyFontsLoadFont(string.sub(tok, 6))
+    if font ~= nil then FontListAdd(categories, font) end
+    end
+tok=toks:next()
+end
+
+end
+
+
+function SentyFontsList()
+local S, str, tags, tag
+local categories={}
+
+
+S=CachedFileOpen("https://www.sentyfont.com/download.htm", "sentyfont.com")
+if S ~= nil
 then
-str=filesys.filename(path)
-fmt=filesys.extn(str)
-end
+str=S:readdoc()
+S:close()
 
-if fmt then fmt=string.lower(fmt) end
-
-return fmt
-end
-
-
-
-
-
-function RationalizeDirectory(destdir, currdir)
-local item, Glob, info
-
-Glob=filesys.GLOB(currdir.."/*")
-item=Glob:next()
-while item ~= nil
+tags=xml.XML(str)
+tag=tags:next()
+while tag ~= nil
 do
-	info=Glob:info()
-
-	if info.type=="directory" then RationalizeDirectory(destdir, item)
-	elseif filesys.extn(item) == ".ttf" then filesys.rename(item, destdir.."/"..filesys.basename(item))
-	elseif filesys.extn(item) == ".otf" then filesys.rename(item, destdir.."/"..filesys.basename(item))
-	elseif filesys.extn(item) == ".otb" then filesys.rename(item, destdir.."/"..filesys.basename(item))
-	elseif filesys.extn(item) == ".pfa" then filesys.rename(item, destdir.."/"..filesys.basename(item))
-	elseif filesys.extn(item) == ".pfb" then filesys.rename(item, destdir.."/"..filesys.basename(item))
-	elseif filesys.extn(item) == ".pcf" then filesys.rename(item, destdir.."/"..filesys.basename(item))
-	elseif filesys.extn(item) == ".bdf" then filesys.rename(item, destdir.."/"..filesys.basename(item))
-	elseif filesys.extn(item) == ".txt" then filesys.rename(item, destdir.."/"..filesys.basename(item))
-	elseif filesys.extn(item) == ".md" then filesys.rename(item, destdir.."/"..filesys.basename(item))
-	end
-
-	item=Glob:next()
+  if tag.type=="a" then SentyFontsParseAnchor(categories, tag.data) end
+  tag=tags:next()
+end
 end
 
-filesys.rmdir(currdir)
+return categories
 end
-
-
-
+-- These functions relate to the screen that allows one to examine, preview and install a particular font
 
 
 
@@ -1192,6 +1291,75 @@ Out:getc()
 end
 
 
+
+
+function DisplayFontInfoBottomBar(font, source)
+local str
+
+str="~B~y~eKeys:~0~B ~wv~y:view ~wx~y:mock terminal ~wt~y:set terminal font "
+if source ~= "installed" then str=str.. " ~wi~y:install font for user  ~wg~y:install font systemwide\n" end
+str=str.."~wescape,backspace,left~y:back"
+BottomBar(str)
+end
+
+
+function FormatFontInfoItem(title, value)
+if strutil.strlen(value)==0 then return "~e"..title .. ":~0 ~runknown~0" end
+if value=="unknown" then return "~e" .. title .. ":~0 ~runknown~0" end
+
+return "~e" ..title .. ":~0 "..value
+end
+
+
+function DisplayFontInfo(font, source) 
+local ch, S, str
+
+if source == "fontsource.org" then FontSourceGetFontDetails(font) end
+
+while true
+do
+Out:clear()
+Out:move(0,0)
+Out:puts("~B~+w~e"..font.name.."~0~B~y  " .. " from " .. source .. "~>~0\n")
+Out:puts("\n")
+
+str=FormatFontInfoItem("Foundry", font.foundry)
+str=str.."  "..FormatFontInfoItem("License", font.license).."\n"
+
+str=str.."~eCategory:~0 " .. font.category .. "  ~eStyle:~0 " .. font.style.. "  ~eWeight:~0 "..font.weight.."\n"
+Out:puts(str)
+Out:puts("~eLanguages:~0 " .. font.languages .. "\n")
+if strutil.strlen(font.info) > 0 then Out:puts("~eDescription:~0 "..font.info.."\n") end
+
+if font.fileformat==".bdf" then Out:puts("\n~rThis is a BDF font, preview will likely not work~0\n"); end
+if font.fileformat==".pcf" then Out:puts("\n~rThis is a PCF font, preview will likely not work~0\n"); end
+if font.fileformat==".otb" then Out:puts("\n~rThis is an OTB font, preview will likely not work~0\n"); end
+
+
+DisplayFontInfoBottomBar(font, source)
+if settings.use_sixel == true
+then
+PreviewFont(font, true, 2, 6, "", "The Quick Brown Fox", "Jumped Over The Lazy Dog", "1234567890")
+end
+
+ch=Out:getc()
+if ch == 'd' then filesys.copy(font.regular, font.name..".ttf")
+elseif ch == 'i' then InstallFont(font, process.getenv("HOME").."/.local/share/fonts/", false)
+elseif ch == 'g' then InstallFont(font, settings.fonts_dir, true)
+elseif ch == 'v' then PreviewFont(font, false, 0, 0, "", "The Quick Brown Fox", "Jumped Over The Lazy Dog", "1234567890")
+elseif ch == 'x' then PreviewFont(font, false, 0, 0, "terminal", " user@server1: kill -9 thegibson", " bash: kill: (20344) - Operation not permitted", " user@server1: hack the planet", " bash: hack: command not found", "user@server1: _")
+elseif ch == 't' then SetTerminalFont(font)
+elseif ch == 'ESC' then break
+elseif ch == 'LEFT' then break
+elseif ch == 'BACKSPACE' then break
+end
+end
+
+end
+
+
+-- these functions provide a 'base menu' that is then used by higher-level display functions
+-- that implement specific menus like list of fonts, or list of font categories
 
 
 -- adds backspace and left to the usual menu:run() command
@@ -1266,81 +1434,64 @@ BottomBar("~B~yKeys: ~wup,w,i~y:move selection up  ~wdown,s,k~y:move selection d
 end
 
 
-function DisplayFontInfoBottomBar(font, source)
-local str
 
-str="~B~y~eKeys:~0~B ~wv~y:view ~wx~y:mock terminal ~wt~y:set terminal font "
-if source ~= "installed" then str=str.. " ~wi~y:install font for user  ~wg~y:install font systemwide\n" end
-str=str.."~wescape,backspace,left~y:back"
-BottomBar(str)
-end
+function MenuColorLicence(licence)
+local toks, tok
+local retstr=""
 
-
-function DisplayFontInfo(font, source) 
-local ch, S, str
-
-if source == "fontsource.org" then FontSourceGetFontDetails(font) end
-
-while true
+toks=strutil.TOKENIZER(licence, ",")
+tok=toks:next()
+while tok ~= nil
 do
-Out:clear()
-Out:move(0,0)
-Out:puts("~B~+w~e"..font.name.."~0~B~y  " .. " from " .. source .. "~>~0\n")
-Out:puts("\n")
-
-str="~eFoundry:~0 " .. tostring(font.foundry)
-if strutil.strlen(font.license) == 0 then str=str.."  ~eLicense:~0 ~runknown~0\n"
-else str=str..("  License: " .. font.license) .."\n" end
-str=str.."~eCategory:~0 " .. font.category .. "  ~eStyle:~0 " .. font.style.. "  ~eWeight:~0 "..font.weight.."\n"
-Out:puts(str)
-Out:puts("~eLanguages:~0 " .. font.languages .. "\n")
-if strutil.strlen(font.info) > 0 then Out:puts("~eDescription:~0 "..font.info.."\n") end
-
-if font.fileformat==".bdf" then Out:puts("\n~rThis is a BDF font, preview will likely not work~0\n"); end
-if font.fileformat==".pcf" then Out:puts("\n~rThis is a PCF font, preview will likely not work~0\n"); end
-if font.fileformat==".otb" then Out:puts("\n~rThis is an OTB font, preview will likely not work~0\n"); end
-
-
-DisplayFontInfoBottomBar(font, source)
-if settings.use_sixel == true
-then
-PreviewFont(font, true, 2, 6, "", "The Quick Brown Fox", "Jumped Over The Lazy Dog", "1234567890")
+if tok=="OFL-1.1" then retstr=retstr.. "~g"..tok.."~0 " end
+if tok=="SIL OFL 1.1" then retstr=retstr.. "~g"..tok.."~0 " end
+if tok=="LGPL" then retstr=retstr.. "~g"..tok.."~0 " end
+if tok=="GPLv2" then retstr=retstr.. "~g"..tok.."~0 " end
+if tok=="GPLv2+" then retstr=retstr.. "~g"..tok.."~0 " end
+if tok=="Apache" then retstr=retstr.. "~g"..tok.."~0 " end
+if tok=="Apache v2" then retstr=retstr.. "~g"..tok.."~0 " end
+if tok=="MIT" then retstr=retstr.. "~g"..tok.."~0 " end
+if tok=="Public Domain" then retstr=retstr.. "~g"..tok.."~0 " end
+if tok=="Non Commercial" then retstr=retstr.. "~y"..tok.."~0 " end
+if tok=="unknown" then retstr=retstr.. "~r"..tok.."~0 " end
+tok=toks:next()
 end
 
-ch=Out:getc()
-if ch == 'd' then filesys.copy(font.regular, font.name..".ttf")
-elseif ch == 'i' then InstallFont(font, process.getenv("HOME").."/.local/share/fonts/", false)
-elseif ch == 'g' then InstallFont(font, settings.fonts_dir, true)
-elseif ch == 'v' then PreviewFont(font, false, 0, 0, "", "The Quick Brown Fox", "Jumped Over The Lazy Dog", "1234567890")
-elseif ch == 'x' then PreviewFont(font, false, 0, 0, "terminal", " user@server1: kill -9 thegibson", " bash: kill: (20344) - Operation not permitted", " user@server1: hack the planet", " bash: hack: command not found", "user@server1: _")
-elseif ch == 't' then SetTerminalFont(font)
-elseif ch == 'ESC' then break
-elseif ch == 'LEFT' then break
-elseif ch == 'BACKSPACE' then break
-end
-end
+if retstr=="" then retstr="~0"..licence end
 
+return retstr
 end
-
-
 
 -- when moving through the 'list of fonts' menu 
 -- this function displays info on each font as it's highlighted. 
 function DisplayFontsMenuInfo(menu, item, fonts)
-local font, str
+local font
+local str=""
 
 if item==nil then return end
 
 font=FontListFind(fonts, item)
 if font ~= nil
 then
+
+	-- ~> clear to end at the start, as we may not end on the same line as we start
+  str="~>" 
+
+--[[
+  if strutil.strlen(font.languages) > 0 
+  then
+  str=str.."languages: "..font.languages .."\n"
+  end
+]]--
+
 	if strutil.strlen(font.info) > 0
 	then
-	Out:move(1, Out:length() -3) 
-	-- ~> at start end end, as we may not end on the same line as we start
-	str="~>" .. font.info .. "~>"
-	Out:puts(str)
+	str=str..font.info
 	end
+
+	str=str.."~>"
+	Out:move(1, Out:length() - 5) 
+	Out:puts(str)
 
 	if source=="installed"
 	then
@@ -1349,6 +1500,7 @@ then
 	end
 end
 end
+
 
 
 function DisplayFontsRun(menu, fonts, source, style)
@@ -1379,14 +1531,6 @@ return nil
 end
 
 
-
-function PadStr(str, len)
-local padded
-
-padded=strutil.padto(str, ' ', len)
-padded=string.sub(padded, 1, len)
-return padded
-end
 
 
 
@@ -1419,8 +1563,8 @@ do
 	end
 
 	item=item .. PadStr(font.foundry, 16)
-	item=item .. "  ~e" .. PadStr(font.title, 30) .. "~0   ~b" .. PadStr(font.style, 20).. "  "
-	if strutil.strlen(font.license) > 0 then item=item..font.license end
+	item=item .. "  ~e" .. PadStr(font.title, 30) .. "~0   ~m" .. PadStr(font.style, 20).. "  "
+	if strutil.strlen(font.license) > 0 then item=item.. MenuColorLicence(font.license) end
 	item=item.."~0"
 	--.. font.languages.."  license:"..font.license
 	Menu:add(item, font.name)
@@ -1435,7 +1579,8 @@ end
 
 end
 
-
+--these functions provide a screen of 'font styles' using the 'basic_menu' functions
+--selecting a font style lists fonts within that style group
 
 function DisplayFontStyleMenu(source, style_list)
 local list,key,category,selection
@@ -1446,6 +1591,7 @@ for key,category in pairs(style_list)
 do
 table.insert(sorted_styles, key)
 end
+
 table.sort(sorted_styles, FontStyleCompare)
 
 
@@ -1480,6 +1626,42 @@ end
 end
 
 
+-- 'main', the entry point of the code is at the bottom of this
+-- 'main' is currently a bit of a dumping ground for stuff that
+-- doesn't go in any of the other modules, but it's mostly the
+-- User Interface code
+
+GOOGLEFONTS_API_KEY="AIzaSyDQSLP4w0WE3UhvoSEtJmWtR1vhDgqMG7E"
+
+VERSION="3.0"
+
+
+-- surprisingly this function is only currently used in main.lua!
+function PadStr(str, len)
+local padded
+
+padded=strutil.padto(str, ' ', len)
+padded=string.sub(padded, 1, len)
+return padded
+end
+
+
+
+
+function FontSortCompare(f1, f2)
+
+if f1==nil and f2==nil then return false end
+if f1==nil then return true end
+if f2==nil then return false end
+if f1.name < f2.name then return true end
+return false
+end
+
+
+
+
+
+
 
 
 function SelectFontSource()
@@ -1501,6 +1683,7 @@ Menu:add("Fonts from FontSource.org", "fontsource.org")
 Menu:add("Fonts from Mozilla", "mozilla")
 Menu:add("Fonts from OmnibusType", "omnibus-type")
 Menu:add("Fonts from NerdFonts.com", "nerdfonts.com")
+Menu:add("Fonts from SentyFont.com", "sentyfont.com")
 Menu:add("Fonts from Elsewhere", "elsewhere")
 
 BasicMenuBottomBar()
@@ -1516,6 +1699,7 @@ then
 	if selection=="fontsource.org" then list=FontSourceList() end
 	if selection=="omnibus-type" then list=OmnibusTypeFontsList() end
 	if selection=="nerdfonts.com" then list=NerdFontsList() end
+	if selection=="sentyfont.com" then list=SentyFontsList() end
 	if selection=="mozilla" then list=MozillaCDNList("https://code.cdn.mozilla.net/") end
 	if selection=="elsewhere" then list=ElsewhereFontsList() end
 	break

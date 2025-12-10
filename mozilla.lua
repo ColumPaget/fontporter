@@ -92,7 +92,7 @@ function MozillaCDNList(url)
 local S, doc, toks, tag
 local categories={}
 
-S=stream.STREAM(url)
+S=CachedFileOpen(url, "mozilla.com")
 doc=S:readdoc()
 S:close()
 
