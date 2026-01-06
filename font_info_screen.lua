@@ -10,32 +10,6 @@ Out:flush()
 end
 
 
-function InstallFont(font, font_root, require_root)
-local path, fpath
-
-Out:move(0,Out:length()-4)
-path=font_root .. string.gsub(font.title, ' ', '_') .. "/"
-Out:puts(" ~b~eInstalling: '"..font.title.."' to "..path.."~0\n")
-
-DownloadFontFile(font, path, "regular")
-DownloadFontFile(font, path, "italic")
-DownloadFontFile(font, path, "bold")
-
--- one of the above should have downloaded
-if DownloadCheckForFontFile(path) ~= nil
-then
-str="/bin/sh -c 'cd " .. strutil.quoteChars(path, ' ') .. "; mkfontscale; mkfontdir; fc-cache -fv'"
-ExecSubcommand(str)
-
-Out:puts(" ~g~eOKAY: installed font '"..font.title.."' to "..path.."~0 PRESS ANY KEY\n")
-else
-Out:puts(" ~r~eERROR: failed to install font '"..font.title.."' to "..path.."~0 PRESS ANY KEY\n")
-end
-Out:flush()
-Out:getc()
-
-end
-
 
 
 
@@ -53,7 +27,7 @@ function FormatFontInfoItem(title, value)
 if strutil.strlen(value)==0 then return "~e"..title .. ":~0 ~runknown~0" end
 if value=="unknown" then return "~e" .. title .. ":~0 ~runknown~0" end
 
-return "~e" ..title .. ":~0 "..value
+return "~e" ..title .. ":~0 "..value.. " - " .. LicenseLongName(value)
 end
 
 
@@ -75,7 +49,7 @@ str=str.."  "..FormatFontInfoItem("License", font.license).."\n"
 str=str.."~eCategory:~0 " .. font.category .. "  ~eStyle:~0 " .. font.style.. "  ~eWeight:~0 "..font.weight.."\n"
 Out:puts(str)
 Out:puts("~eLanguages:~0 " .. font.languages .. "\n")
-if strutil.strlen(font.info) > 0 then Out:puts("~eDescription:~0 "..font.info.."\n") end
+if strutil.strlen(font.description) > 0 then Out:puts("~eDescription:~0 "..font.description.."\n") end
 
 if font.fileformat==".bdf" then Out:puts("\n~rThis is a BDF font, preview will likely not work~0\n"); end
 if font.fileformat==".pcf" then Out:puts("\n~rThis is a PCF font, preview will likely not work~0\n"); end

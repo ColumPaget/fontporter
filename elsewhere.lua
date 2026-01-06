@@ -16,7 +16,7 @@ font.title=toks:next()
 font.name=font.title .. " - "..filesys.basename(path)
 font.style=toks:next()
 font.foundry=toks:next()
-font.info=toks:next()
+font.description=toks:next()
 font.license=toks:next()
 if font.license==nil then font.license="" end
 font.languages=""

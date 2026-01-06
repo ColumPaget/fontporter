@@ -1,3 +1,11 @@
+v5.0 (2026-01-06)
+* added fontshare.com website/download
+* rationalize licence names that are expressed differently in different sources
+* improvements to 'fonts menu'
+* write 'font info file' when installing font
+* improved behavior in small (<21 rows) terminals
+* try to guess/extract license type for locally installed fonts
+
 v4.0 (2025-12-10)
 * added sentyfonts website/download
 * completely reworked 'font style' system so fonts can be in multiple categories

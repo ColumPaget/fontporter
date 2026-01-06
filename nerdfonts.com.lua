@@ -56,7 +56,7 @@ then
   elseif string.sub(item.data, 1, 12)=="&bull; Info:"
   then
   item=toks:next()
-  font.info=strutil.htmlUnQuote(toks:next().data)
+  font.description=strutil.htmlUnQuote(toks:next().data)
   end
 elseif item.type == "div" and item.data == "class=\"nerd-font-buttons-wrapper\"" 
 then 

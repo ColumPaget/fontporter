@@ -25,9 +25,7 @@ end
 
 BasicMenuBottomBar()
 
-Out:move(0,5)
-
-Menu=terminal.TERMMENU(Out, 1, 6, Out:width()-2, Out:length()-8)
+Menu=terminal.TERMMENU(Out, 1, 2, Out:width()-2, Out:length()-4)
 
 for i,key in ipairs(sorted_styles)
 do

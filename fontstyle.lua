@@ -1,4 +1,7 @@
 -- functions related to font styles, sans, serif, monospace etc
+-- some of the functions in here try to 'guess' fonts styles by looking for strings in the name, language list or description
+-- as some short strings, like "cree" can turn up in names and description as e.g. 'creek' or 'creepy' so we have different
+-- word 'alias' lists for name, languages and 'style'
 
 font_style_aliases={
 serif={"roman"},
@@ -8,14 +11,34 @@ blackletter={"blackletter", "medieval", "medeival", "gothic", "woodcut"},
 handwriting={"script", "handwriting", "handdrawn"},
 calligraphy={"caligraphic", "calligraphic", "caligraphy", "calligraphy"},
 monospace={"mono", "monospace", "monospaced", "pixel", "programming", "typewriter","courier"},
-sans_serif={"sans", "sans%-serif","sans%-serif","sans serif", "humanist"},
-slab_serif={"slab", "slab%-serif", "slab%-serif", "slab serif"},
-light={"light", "thin", "extralight"},
-barcode={"barcode","code128","code38"},
+sans_serif={"sans", "sans.serif","humanist"},
+slab_serif={"slab", "slab.serif"},
+light={"^light", "^thin%s", "%sthin%s", "extralight", "narrow"},
+symbol={"symbol", "emoji", "math", "music"},
+barcode={"barcode","code128","code.128","code39","code.39","ean13","ean.13","codabar","databar"},
 music={"music", "score"},
-comic={"comic", "cartoon"},
+comic={"comic", "cartoon", "comedy"},
 italic={"italic", "oblique"},
 bold={"bold"},
+cyrillic={"russian","ukrainian","bulgarian","bosnian","serbian","belarusian","tatar","tajik"},
+native_american={"cherokee","algonquian","ojibwe"},
+mesoamerican={"aztec","olmec","toltec","mixtec","zaptoec"},
+chinese={"chinese", "pinyin"},
+india={"hindi","devanagari", "bangla", "bengali", "kannada","gujarati", "gurumukhi", "gurmukhi", "malayalam", "tamil","telugu", "telugua", "meitei", "gupta", "sanskrit","brahmic"},
+korean={"hangul", "korean"},
+japanese={"hiragana", "katakana"},
+persian={"farsi", "persian"},
+other_asian={"khmer","tibetan", "philippine","rohingya", "myanmar","hmong","Butuan","javanese","mongolian","sindhi"},
+historical={"ancient", "old%-", "proto%-", "ogham", "phoenician", "runic", "runes", "elamite", "sogdian", "nabataean", "demotic", "meroitic","hieratic", "hieroglyphs", "cuneiform", "linear%-a", "linear%-b", "lycian", "lydian", "manichean", "manichaean", "byblos", "tocharian", "tangut", "khitan", "kushan", "minoan", "aramaic", "pahlavi", "parthian", "jurchen", "avestan", "mycenaean","indus", "woodcut"},
+fictional={"klingon", "vulcan", "mandel", "elvish", "quenya", "tengwar", "sindarin", "sarati", "cirth", "aurebesh", "galactic"},
+sci_fi={"klingon","vulcan","galactic","spacey","sci%-fi","alien","martian","star%-","futuristic"},
+fantasy={"elvish", "tengwar", "sarati", "cirth", "orcish", "fantasy", "quenya", "sindarin", "lovecraft", "woodcut"},
+horror={"horror", "creepy", "halloween", "sinister"}
+}
+
+
+font_lang_aliases={
+greek={"greek"},
 cyrillic={"russian","ukrainian","bulgarian","bosnian","serbian","belarusian","tatar","tajik"},
 native_american={"cree","cherokee","algonquian","ojibwe","osage","yugtun"},
 mesoamerican={"aztec","maya","olmec","toltec","mixtec","zaptoec"},
@@ -23,13 +46,29 @@ chinese={"chinese", "pinyin"},
 india={"hindi","devanagari", "bangla", "bengali", "urdu", "kannada","gujarati", "gurumukhi", "gurmukhi", "malayalam", "odia", "tamil","telugu", "telugua", "meitei", "gupta", "sanskrit","brahmic"},
 korean={"hangul", "korean"},
 persian={"farsi", "persian"},
+japanese={"hiragana", "katakana"},
 other_asian={"khmer","tibetan", "philippine","rohingya", "myanmar","hmong","Butuan","javanese","mongolian","thai", "sindhi"},
 symbol={"symbol", "emoji", "math", "music"},
+barcode={"barcode","code128","code.128","code39","code.39","ean13","ean.13","codabar","databar"},
 historical={"ancient", "old%-", "proto%-", "ogham", "phoenician", "runic", "runes", "elamite", "sogdian", "nabataean", "demotic", "meroitic","hieratic", "hieroglyphs", "cuneiform", "linear%-a", "linear%-b", "lycian", "lydian", "manichean", "manichaean", "byblos", "tocharian", "tangut", "khitan", "kushan", "minoan", "aramaic", "pahlavi", "parthian", "jurchen", "avestan", "mycenaean","indus", "woodcut"},
 fictional={"klingon", "vulcan", "mandel", "elvish", "quenya", "tengwar", "sindarin", "sarati", "cirth", "aurebesh", "galactic"},
-sci_fi={"klingon","vulcan","galactic","spacey","sci%-fi","alien","martian","star%-","futuristic"},
-fantasy={"elvish", "tengwar", "sarati", "cirth", "orcish", "fantasy", "quenya", "sindarin", "lovecraft", "woodcut"},
-japanese={"hiragana", "katakana"}
+sci_fi={"klingon","vulcan","galactic","alien"},
+fantasy={"elvish", "tengwar", "sarati", "cirth", "orcish", "fantasy", "quenya", "sindarin"},
+}
+
+
+font_name_aliases={
+serif={"roman"},
+sans_serif={"^sans$", "sans.serif","humanist"},
+slab_serif={"^slab", "slab.serif"},
+italic={"italic", "oblique"},
+light={"^light$", "^thin$", "extralight", "narrow"},
+bold={"^bold$"},
+display={"display", "stencil", "novelty", "signwriting", "woodcut"},
+monospace={"mono", "monospace", "monospaced", "courier"},
+symbol={"symbol", "emoji"},
+comic={"comic", "cartoon"},
+barcode={"barcode","code128","code.128","code39","code.39","ean13","ean.13","codabar","databar"},
 }
 
 
@@ -80,14 +119,11 @@ return nil
 end
 
 
-function FontStyleMatch(styles, input)
+function FontStyleMatch(styles, input, aliases)
 local category, members, found
 local retstr=""
 
-tok=FontStyleMatchMembers(input, root_font_styles)
-if strutil.strlen(tok) > 0 then styles[tok]=tok end
-
-for category,members in pairs(font_style_aliases)
+for category,members in pairs(aliases)
 do
   found=FontStyleMatchMembers(input, members) 
   if found ~= nil then styles[category]=found end
@@ -96,7 +132,7 @@ end
 end
 
 
-function FontStyleExamineString(styles, input)
+function FontStyleExamineString(styles, input, aliases)
 local toks, tok
 
 if input==nil then return end
@@ -104,12 +140,12 @@ if input==nil then return end
 
 if strutil.strlen(input) > 0
 then
-  toks=strutil.TOKENIZER(input, "\\S|,", "m")
+  toks=strutil.TOKENIZER(input, "\\S|,|-|_", "m")
   tok=toks:next()
   while tok ~= nil
   do
    tok=string.lower(tok)
-   FontStyleMatch(styles, tok)
+   FontStyleMatch(styles, tok, aliases)
   
    tok=toks:next()
   end
@@ -126,9 +162,10 @@ function FontsParseStyle(font, filename)
 local styles={}
 local retstr=""
 
-FontStyleExamineString(styles, font.style)
-FontStyleExamineString(styles, font.info)
-FontStyleExamineString(styles, font.languages)
+FontStyleExamineString(styles, font.style, font_style_aliases)
+FontStyleExamineString(styles, font.description, font_style_aliases)
+FontStyleExamineString(styles, font.languages, font_lang_aliases)
+FontStyleExamineString(styles, font.name, font_name_aliases)
 
 for name,value in pairs(styles)
 do

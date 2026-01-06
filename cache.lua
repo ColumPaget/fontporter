@@ -41,13 +41,18 @@ end
 
 
 function GetCachedJSON(url, source)
-local S, P, json
+local S, json
+local P=nil
 
 S=CachedFileOpen(url, source)
-json=S:readdoc()
-S:close()
+if S ~= nil
+then
+  json=S:readdoc()
+  S:close()
 
-P=dataparser.PARSER("json", json)
+  P=dataparser.PARSER("json", json)
+end
+
 return(P)
 end
 

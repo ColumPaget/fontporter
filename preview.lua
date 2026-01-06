@@ -45,6 +45,8 @@ end
 
 str=str.." 2>/dev/null"
 
+io.stderr:write(str)
+
 os.execute(str)
 end
 
