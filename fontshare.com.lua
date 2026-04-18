@@ -30,6 +30,8 @@ then
    
    item=fonts:next()
    end
+   FontListFinalize(categories)
+
 end
 end
 

@@ -1,3 +1,6 @@
+v5.1 (2026-04-18)
+* improve 'font category' system to prevent same font being added multiple times
+
 v5.0 (2026-01-06)
 * added fontshare.com website/download
 * rationalize licence names that are expressed differently in different sources

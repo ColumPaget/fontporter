@@ -59,7 +59,8 @@ then
      end
   item=toks:next()
   end
-  
+
+  FontListFinalize(categories)
 end
 
 return(categories)

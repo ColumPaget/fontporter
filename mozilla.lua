@@ -82,6 +82,7 @@ do
 	end
 tok=toks:next()
 end
+FontListFinalize(categories)
 end
 
 end

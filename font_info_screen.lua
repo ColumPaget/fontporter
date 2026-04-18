@@ -4,8 +4,8 @@
 
 function SetTerminalFont(font)
 
-Out:puts("\x1b]50;"..string.lower(font.title).."\x07")
-Out:puts("\x1b]50;" .. "-*-" .. string.lower(font.title) .. "-*-r-normal--*-*-*-*-*-*-*-*\x07")
+Out:puts("\x1b]50;"..font.title.."\x07")
+--Out:puts("\x1b]50;" .. "-*-" .. string.lower(font.title) .. "-*-r-normal--*-*-*-*-*-*-*-*\x07")
 Out:flush()
 end
 

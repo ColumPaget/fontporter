@@ -25,12 +25,15 @@ S=stream.STREAM(install_dir.."/font.info", "r")
 if S ~= nil
 then
   str=S:readln()
-	while str ~= nil
+  while str ~= nil
   do
     toks=strutil.TOKENIZER(strutil.trim(str), ":")
-   	name=toks:next()
-   	value=toks:remaining()
-    if strutil.strlen(font[name]) ==  0 then font[name]=value end
+    name=toks:next()
+    if strutil.strlen(name) > 0
+    then
+      value=toks:remaining()
+      if strutil.strlen(font[name]) ==  0 then font[name]=value end
+    end
   str=S:readln()
   end
 
@@ -112,6 +115,8 @@ local categories={}
 local S, str, font
 
 S=stream.STREAM("cmd:fc-list : file family foundry style spacing weight lang")
+if S ~= nil
+then
 str=S:readln()
 while str ~= nil
 do
@@ -125,7 +130,9 @@ do
   end
   str=S:readln()
 end
+FontListFinalize(categories)
 S:close()
+end
 
 return(categories)
 end

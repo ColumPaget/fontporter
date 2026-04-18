@@ -2,7 +2,9 @@
 -- or offered by a service
 
 function FontCategoryAdd(categories, font, category)
-local cat
+local cat, id
+
+id=font.name..tostring(font.fileformat)..tostring(font.weight)
 
 cat=categories[category] 
 if cat == nil
@@ -11,7 +13,7 @@ cat={}
 categories[category]=cat 
 end
 
-table.insert(cat, font)
+cat[id]=font
 
 end
 
@@ -35,6 +37,29 @@ end
 
 end
 
+function FontListCategoryFinalize(category)
+local new_cat={}
+local key, font
+
+for key,font in pairs(category)
+do
+table.insert(new_cat, font)
+end
+
+return new_cat
+end
+
+
+function FontListFinalize(fonts_list)
+local key, category
+
+for key,category in pairs(fonts_list)
+do
+fonts_list[key]=FontListCategoryFinalize(category)
+end
+end
+
+
 
 function FontListFind(fontlist, name)
 local key, font
@@ -46,5 +71,6 @@ local key, font
 
 return nil
 end
+
 
 

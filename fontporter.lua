@@ -234,7 +234,9 @@ end
 -- or offered by a service
 
 function FontCategoryAdd(categories, font, category)
-local cat
+local cat, id
+
+id=font.name..tostring(font.fileformat)..tostring(font.weight)
 
 cat=categories[category] 
 if cat == nil
@@ -243,7 +245,7 @@ cat={}
 categories[category]=cat 
 end
 
-table.insert(cat, font)
+cat[id]=font
 
 end
 
@@ -267,6 +269,29 @@ end
 
 end
 
+function FontListCategoryFinalize(category)
+local new_cat={}
+local key, font
+
+for key,font in pairs(category)
+do
+table.insert(new_cat, font)
+end
+
+return new_cat
+end
+
+
+function FontListFinalize(fonts_list)
+local key, category
+
+for key,category in pairs(fonts_list)
+do
+fonts_list[key]=FontListCategoryFinalize(category)
+end
+end
+
+
 
 function FontListFind(fontlist, name)
 local key, font
@@ -278,6 +303,7 @@ local key, font
 
 return nil
 end
+
 
 
 
@@ -645,7 +671,6 @@ end
 
 str=str.." 2>/dev/null"
 
-io.stderr:write(str)
 
 os.execute(str)
 end
@@ -816,12 +841,15 @@ S=stream.STREAM(install_dir.."/font.info", "r")
 if S ~= nil
 then
   str=S:readln()
-	while str ~= nil
+  while str ~= nil
   do
     toks=strutil.TOKENIZER(strutil.trim(str), ":")
-   	name=toks:next()
-   	value=toks:remaining()
-    if strutil.strlen(font[name]) ==  0 then font[name]=value end
+    name=toks:next()
+    if strutil.strlen(name) > 0
+    then
+      value=toks:remaining()
+      if strutil.strlen(font[name]) ==  0 then font[name]=value end
+    end
   str=S:readln()
   end
 
@@ -903,6 +931,8 @@ local categories={}
 local S, str, font
 
 S=stream.STREAM("cmd:fc-list : file family foundry style spacing weight lang")
+if S ~= nil
+then
 str=S:readln()
 while str ~= nil
 do
@@ -916,7 +946,9 @@ do
   end
   str=S:readln()
 end
+FontListFinalize(categories)
 S:close()
+end
 
 return(categories)
 end
@@ -973,6 +1005,8 @@ if font ~= nil then FontListAdd(categories, font) end
 str=S:readln()
 end
 S:close()
+
+FontListFinalize(categories)
 end
 
 return(categories)
@@ -1020,6 +1054,8 @@ FontListAdd(categories, font)
 item=P:next()
 end
 
+FontListFinalize(categories)
+
 return categories
 end
 
@@ -1050,6 +1086,8 @@ FontListAdd(categories, font)
 
 item=P:next()
 end
+
+FontListFinalize(categories)
 end
 
 return categories
@@ -1084,6 +1122,8 @@ FontListAdd(categories, font)
 
 item=I:next()
 end
+
+FontListFinalize(categories)
 
 return(categories)
 end
@@ -1172,6 +1212,7 @@ do
 	end
 tok=toks:next()
 end
+FontListFinalize(categories)
 end
 
 end
@@ -1264,7 +1305,8 @@ then
      end
   item=toks:next()
   end
-  
+
+  FontListFinalize(categories)
 end
 
 return(categories)
@@ -1368,6 +1410,8 @@ do
   end
   item=toks:next()
 end
+
+FontListFinalize(categories)
 end
 
 return categories
@@ -1501,6 +1545,8 @@ do
   if tag.type=="a" then SentyFontsParseAnchor(categories, tag.data) end
   tag=tags:next()
 end
+
+FontListFinalize(categories)
 end
 
 return categories
@@ -1537,6 +1583,8 @@ then
    
    item=fonts:next()
    end
+   FontListFinalize(categories)
+
 end
 end
 
@@ -1598,8 +1646,8 @@ end
 
 function SetTerminalFont(font)
 
-Out:puts("\x1b]50;"..string.lower(font.title).."\x07")
-Out:puts("\x1b]50;" .. "-*-" .. string.lower(font.title) .. "-*-r-normal--*-*-*-*-*-*-*-*\x07")
+Out:puts("\x1b]50;"..font.title.."\x07")
+--Out:puts("\x1b]50;" .. "-*-" .. string.lower(font.title) .. "-*-r-normal--*-*-*-*-*-*-*-*\x07")
 Out:flush()
 end
 

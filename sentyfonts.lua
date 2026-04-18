@@ -126,6 +126,8 @@ do
   if tag.type=="a" then SentyFontsParseAnchor(categories, tag.data) end
   tag=tags:next()
 end
+
+FontListFinalize(categories)
 end
 
 return categories

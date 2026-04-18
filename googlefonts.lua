@@ -28,6 +28,8 @@ FontListAdd(categories, font)
 item=I:next()
 end
 
+FontListFinalize(categories)
+
 return(categories)
 end
 

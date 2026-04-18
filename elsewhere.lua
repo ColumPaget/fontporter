@@ -49,6 +49,8 @@ if font ~= nil then FontListAdd(categories, font) end
 str=S:readln()
 end
 S:close()
+
+FontListFinalize(categories)
 end
 
 return(categories)

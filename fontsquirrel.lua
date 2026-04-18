@@ -25,6 +25,8 @@ FontListAdd(categories, font)
 
 item=P:next()
 end
+
+FontListFinalize(categories)
 end
 
 return categories
