@@ -5,7 +5,7 @@
 
 GOOGLEFONTS_API_KEY="AIzaSyDQSLP4w0WE3UhvoSEtJmWtR1vhDgqMG7E"
 
-VERSION="5.0"
+VERSION="5.1"
 
 
 -- surprisingly this function is only currently used in main.lua!
